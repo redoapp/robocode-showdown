@@ -11,7 +11,7 @@ tournament runner.
 
 ## ⏱️ Get battling in 5 minutes
 
-You need two things installed: **[Node.js](https://nodejs.org/) 18+** and
+You need two things installed: **[Node.js](https://nodejs.org/) 22 or newer** (repo pins 22.17.1 in `.nvmrc`) and
 **[Java](https://adoptium.net/) 11+** (Java runs the Robocode app itself).
 
 ```bash

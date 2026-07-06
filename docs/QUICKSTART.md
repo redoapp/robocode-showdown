@@ -10,10 +10,11 @@ Target time: **~10 minutes**. If you get stuck, grab an organizer.
 java -version   # if this errors, install from https://adoptium.net/
 ```
 
-**Node.js 18+** (runs your TypeScript bot):
+**Node.js 22 or newer** (runs your TypeScript bot — `.nvmrc` pins 22.17.1):
 
 ```bash
-node -v         # if this errors, install from https://nodejs.org/
+node -v         # want v22+; if you use nvm, run `nvm use` to match .nvmrc
+                # no Node yet? install from https://nodejs.org/
 ```
 
 ## 2. Clone the repo and install the bot API
