@@ -6,18 +6,19 @@ project — all bots share the one `node_modules/` here (the boot scripts look f
 
 ## Add your bot
 
-The easy way, from the repo root:
+The easy way, from the repo root (**name it after yourself** so it's easy to
+identify in the arena and on the bracket):
 
 ```bash
-npm run new-bot -- MyCoolBot
+npm run new-bot -- YourName
 ```
 
-That scaffolds `bots/MyCoolBot/` with a ready-to-run `.ts`, `.json`, `.sh`, and
+That scaffolds `bots/YourName/` with a ready-to-run `.ts`, `.json`, `.sh`, and
 `.cmd`, all named correctly.
 
 The important rule: **every file in a bot folder must share the folder's exact
-name.** `bots/MyCoolBot/` must contain `MyCoolBot.ts`, `MyCoolBot.json`,
-`MyCoolBot.sh`, `MyCoolBot.cmd`. The booter finds your bot by that name — a
+name.** `bots/YourName/` must contain `YourName.ts`, `YourName.json`,
+`YourName.sh`, `YourName.cmd`. The booter finds your bot by that name — a
 mismatch means it won't load.
 
 ## What each file does

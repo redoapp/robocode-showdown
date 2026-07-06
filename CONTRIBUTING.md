@@ -46,6 +46,7 @@ brand-new bot and won't join a bracket that's already in progress.
 
 ## Naming
 
-Pick something fun and identifiable — it's what shows up in the arena and on the
-bracket. Letters, digits, and underscores only; start with a letter
-(e.g. `SpinKing`, `Dodge_9000`).
+**Name your bot after yourself** — it's what shows up in the arena, on the
+bracket, and on the scoreboard, so making it clearly *you* keeps every match easy
+to follow. Use your name (optionally with a fun suffix). Letters, digits, and
+underscores only; start with a letter (e.g. `Alex`, `AlexBurns`, `Alex_9000`).

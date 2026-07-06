@@ -20,7 +20,7 @@ node -v         # want v22+; if you use nvm, run `nvm use` to match .nvmrc
 ## 2. Clone the repo and install the bot API
 
 ```bash
-git clone <REPO_URL> robocode-showdown
+git clone https://github.com/alex-burnzie/robocode-showdown robocode-showdown
 cd robocode-showdown
 npm run setup     # == cd bots && npm install  (installs the TS bot API once)
 ```
@@ -31,17 +31,17 @@ Download the installer for your OS from the Tank Royale **[GitHub Releases](http
 
 | OS      | File                                     |
 | ------- | ---------------------------------------- |
-| Windows | `robocode-tank-royale-gui-<ver>.msi`     |
-| macOS   | `robocode-tank-royale-gui-<ver>.pkg`     |
-| Linux   | `...-gui-<ver>.deb` or `...-gui-<ver>.rpm` |
+| Windows | `robocode-tank-royale-gui-1.0.2.msi`     |
+| macOS   | `robocode-tank-royale-gui-1.0.2.pkg`     |
+| Linux   | `...-gui-1.0.2.deb` or `...-gui-1.0.2.rpm` |
 
 Install and launch it. (The installers aren't code-signed, so you may need to
 click through an "unidentified developer" warning — see the release page notes.)
 
-Prefer no install? Download the portable `robocode-tankroyale-gui-<ver>.jar` and run:
+Prefer no install? Download the portable `robocode-tankroyale-gui-1.0.2.jar` and run:
 
 ```bash
-java -jar robocode-tankroyale-gui-<ver>.jar
+java -jar robocode-tankroyale-gui-1.0.2.jar
 ```
 
 ## 4. Point Robocode at this repo's bots
@@ -58,22 +58,23 @@ Robocode boots bots by folder name, and each of our bots has a matching
 
 ## 5. Make your own bot
 
-From the repo root:
+From the repo root — **name your bot after yourself** so it's easy to spot in the
+arena and on the bracket:
 
 ```bash
-npm run new-bot -- MyCoolBot
+npm run new-bot -- YourName
 ```
 
-This creates `bots/MyCoolBot/` with everything named correctly. Open
-`bots/MyCoolBot/MyCoolBot.ts` in your editor and start hacking. Also edit the
-`authors` field in `MyCoolBot.json` so your name shows up.
+This creates `bots/YourName/` with everything named correctly. Open
+`bots/YourName/YourName.ts` in your editor and start hacking. Also edit the
+`authors` field in `YourName.json` so your name shows up.
 
 ## 6. Battle!
 
 In the GUI:
 
 1. **Battle → Start Battle** (or the "New Battle" button).
-2. In the **Boot** column on the left, select `MyCoolBot`, `SampleBot`, and
+2. In the **Boot** column on the left, select `YourName`, `SampleBot`, and
    `Hunter`, and click **Boot** ▶ — this starts each bot's process.
 3. Move the booted bots into the battle, set the number of rounds, and click
    **Start Battle**.
@@ -86,7 +87,7 @@ In the GUI:
 ## Common gotchas
 
 - **Bot doesn't appear in the list** → the folder name and the file names must
-  match exactly (`MyCoolBot/MyCoolBot.ts`). Re-run `npm run new-bot` rather than
+  match exactly (`YourName/YourName.ts`). Re-run `npm run new-bot` rather than
   copying by hand.
 - **"Cannot find module @robocode.dev/..."** → you skipped `npm run setup`, or
   ran it somewhere other than the repo. Run it from the repo root.

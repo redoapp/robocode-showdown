@@ -16,15 +16,15 @@ You need two things installed: **[Node.js](https://nodejs.org/) 22 or newer** (r
 
 ```bash
 # 1. Clone and install
-git clone <REPO_URL> robocode-showdown
+git clone https://github.com/alex-burnzie/robocode-showdown robocode-showdown
 cd robocode-showdown
 npm run setup            # installs the bot API (once)
 
 # 2. Download & launch the Robocode GUI  (the .jar — see docs/QUICKSTART.md)
 java -jar robocode-tankroyale-gui-x.y.z.jar
 
-# 3. Make your own bot
-npm run new-bot -- MyCoolBot
+# 3. Make your own bot — name it after yourself
+npm run new-bot -- YourName
 ```
 
 Then in the GUI: **Start a server → add the `bots/` folder as a bot directory →
@@ -67,10 +67,11 @@ official docs: <https://robocode.dev/articles/intro.html>.
 ## 📥 Submitting your bot
 
 We collect bots through **pull requests** so everything lands in one repo.
+**Name your bot after yourself** so it's easy to spot in the arena and on the bracket.
 
-1. Create your bot: `npm run new-bot -- YourBotName`
-2. Commit **only your bot's folder** under `bots/YourBotName/`.
-3. Open a PR titled `Add bot: YourBotName`.
+1. Create your bot: `npm run new-bot -- YourName`
+2. Commit **only your bot's folder** under `bots/YourName/`.
+3. Open a PR titled `Add bot: YourName`.
 
 Details and rules: **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
@@ -95,7 +96,7 @@ results with the built-in manager:
 ```bash
 npm run tournament -- draw        # draw the groups
 npm run tournament -- status      # standings + bracket + what's left to play
-npm run tournament -- report A1 MyCoolBot   # record a result
+npm run tournament -- report A1 YourName   # record a result
 npm run tournament -- knockout    # seed the bracket once groups finish
 ```
 

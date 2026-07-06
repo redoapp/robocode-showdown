@@ -1,6 +1,6 @@
-<!-- Title your PR: "Add bot: YourBotName" -->
+<!-- Title your PR: "Add bot: YourName" -->
 
-**Bot name:** <!-- e.g. SpinKing -->
+**Bot name:** <!-- name it after yourself, e.g. Alex or AlexBurns -->
 **Author(s):** <!-- your name(s) -->
 
 ## Checklist
