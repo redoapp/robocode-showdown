@@ -58,23 +58,23 @@ Robocode boots bots by folder name, and each of our bots has a matching
 
 ## 5. Make your own bot
 
-From the repo root — **name your bot after yourself** so it's easy to spot in the
-arena and on the bracket:
+From the repo root — **name your bot `<yourname>-bot`** so it's easy to spot in
+the arena and on the bracket:
 
 ```bash
-npm run new-bot -- YourName
+npm run new-bot -- aburns-bot
 ```
 
-This creates `bots/YourName/` with everything named correctly. Open
-`bots/YourName/YourName.ts` in your editor and start hacking. Also edit the
-`authors` field in `YourName.json` so your name shows up.
+This creates `bots/aburns-bot/` with everything named correctly. Open
+`bots/aburns-bot/aburns-bot.ts` in your editor and start hacking. Also edit the
+`authors` field in `aburns-bot.json` so your name shows up.
 
 ## 6. Battle!
 
 In the GUI:
 
 1. **Battle → Start Battle** (or the "New Battle" button).
-2. In the **Boot** column on the left, select `YourName`, `SampleBot`, and
+2. In the **Boot** column on the left, select `aburns-bot`, `SampleBot`, and
    `Hunter`, and click **Boot** ▶ — this starts each bot's process.
 3. Move the booted bots into the battle, set the number of rounds, and click
    **Start Battle**.
@@ -87,7 +87,7 @@ In the GUI:
 ## Common gotchas
 
 - **Bot doesn't appear in the list** → the folder name and the file names must
-  match exactly (`YourName/YourName.ts`). Re-run `npm run new-bot` rather than
+  match exactly (`aburns-bot/aburns-bot.ts`). Re-run `npm run new-bot` rather than
   copying by hand.
 - **"Cannot find module @robocode.dev/..."** → you skipped `npm run setup`, or
   ran it somewhere other than the repo. Run it from the repo root.

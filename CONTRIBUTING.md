@@ -8,26 +8,26 @@ organizer can pull them all at once.
 1. **Create your bot** (if you haven't):
 
    ```bash
-   npm run new-bot -- YourBotName
+   npm run new-bot -- aburns-bot
    ```
 
 2. **Branch, commit your folder, push:**
 
    ```bash
-   git checkout -b bot/yourbotname
-   git add bots/YourBotName
-   git commit -m "Add bot: YourBotName"
-   git push -u origin bot/yourbotname
+   git checkout -b bot/aburns-bot
+   git add bots/aburns-bot
+   git commit -m "Add bot: aburns-bot"
+   git push -u origin bot/aburns-bot
    ```
 
-3. **Open a PR** titled `Add bot: YourBotName`.
+3. **Open a PR** titled `Add bot: aburns-bot`.
 
 ## Rules (keep the merge painless)
 
-- ✅ **Only touch your own folder**, `bots/YourBotName/`. Don't edit other bots,
+- ✅ **Only touch your own folder**, `bots/aburns-bot/`. Don't edit other bots,
   shared config, `package.json`, or the scripts.
-- ✅ **Folder name == file names.** `bots/YourBotName/` must contain
-  `YourBotName.ts`, `.json`, `.sh`, `.cmd`. (The `new-bot` script does this for
+- ✅ **Folder name == file names.** `bots/aburns-bot/` must contain
+  `aburns-bot.ts`, `.json`, `.sh`, `.cmd`. (The `new-bot` script does this for
   you — use it instead of copy-pasting.)
 - ✅ **Fill in `authors`** in your `.json` so you get credit on the scoreboard.
 - ✅ **Your bot must boot and run a battle** locally before you submit.
@@ -46,7 +46,7 @@ brand-new bot and won't join a bracket that's already in progress.
 
 ## Naming
 
-**Name your bot after yourself** — it's what shows up in the arena, on the
+**Name your bot `<yourname>-bot`** — it's what shows up in the arena, on the
 bracket, and on the scoreboard, so making it clearly *you* keeps every match easy
-to follow. Use your name (optionally with a fun suffix). Letters, digits, and
-underscores only; start with a letter (e.g. `Alex`, `AlexBurns`, `Alex_9000`).
+to follow. Lowercase letters, digits, and hyphens; start with a letter
+(e.g. `aburns-bot`, `aburns-9000-bot`, `aburns-tank-bot`).

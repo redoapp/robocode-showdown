@@ -85,8 +85,9 @@ Radar range is 1200 px and it only detects bots inside the arc it *swept this tu
 ```ts
 import { Bot, ScannedBotEvent, HitByBulletEvent } from "@robocode.dev/tank-royale-bot-api";
 
-class MyBot extends Bot {
-  static main() { new MyBot().start(); }
+// Folder/files are aburns-bot.*, but the class name is PascalCase (no hyphens).
+class AburnsBot extends Bot {
+  static main() { new AburnsBot().start(); }
 
   override run() {
     this.setAdjustRadarForGunTurn(true);
@@ -113,7 +114,7 @@ class MyBot extends Bot {
   }
 }
 
-MyBot.main();
+AburnsBot.main();
 ```
 
 See `bots/Hunter/Hunter.ts` for a fuller version with predictive aiming.

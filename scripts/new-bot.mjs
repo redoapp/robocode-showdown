@@ -2,10 +2,10 @@
 /**
  * Scaffold a new bot folder under bots/ from a template.
  *
- *   npm run new-bot -- MyCoolBot
- *   node scripts/new-bot.mjs MyCoolBot "Your Name"
+ *   npm run new-bot -- aburns-bot
+ *   node scripts/new-bot.mjs aburns-bot "Your Name"
  *
- * Creates bots/MyCoolBot/ with MyCoolBot.{ts,json,sh,cmd}, all named to match
+ * Creates bots/aburns-bot/ with aburns-bot.{ts,json,sh,cmd}, all named to match
  * the folder (required by the Robocode booter).
  */
 import { mkdirSync, writeFileSync, existsSync, chmodSync } from "node:fs";
@@ -22,11 +22,19 @@ if (!name) {
   console.error("Usage: npm run new-bot -- <BotName> [\"Author Name\"]");
   process.exit(1);
 }
-if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(name)) {
-  console.error(`Invalid bot name "${name}". Use letters, digits and underscores; start with a letter.`);
-  console.error("Good: SpinKing   Bad: spin-king, 3fast, my bot");
+if (!/^[A-Za-z][A-Za-z0-9-]*$/.test(name)) {
+  console.error(`Invalid bot name "${name}". Use letters, digits and hyphens; start with a letter.`);
+  console.error("Good: aburns-bot   Bad: 3fast, my bot, -bot");
   process.exit(1);
 }
+
+// The folder/files use the name as-is (e.g. aburns-bot), but a JS class name can't
+// contain hyphens — derive a valid PascalCase identifier for the class.
+const className = name
+  .split(/[^A-Za-z0-9]+/)
+  .filter(Boolean)
+  .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+  .join("");
 
 const dir = join(botsDir, name);
 if (existsSync(dir)) {
@@ -43,9 +51,9 @@ const ts = `/**
  */
 import { Bot, ScannedBotEvent, HitByBulletEvent, HitWallEvent } from "@robocode.dev/tank-royale-bot-api";
 
-class ${name} extends Bot {
+class ${className} extends Bot {
   static main() {
-    new ${name}().start();
+    new ${className}().start();
   }
 
   // Runs once at the start of each round. Your main loop goes here.
@@ -76,7 +84,7 @@ class ${name} extends Bot {
   }
 }
 
-${name}.main();
+${className}.main();
 `;
 
 const json = JSON.stringify(

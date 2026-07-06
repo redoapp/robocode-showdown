@@ -1,13 +1,13 @@
-<!-- Title your PR: "Add bot: YourName" -->
+<!-- Title your PR: "Add bot: aburns-bot" -->
 
-**Bot name:** <!-- name it after yourself, e.g. Alex or AlexBurns -->
+**Bot name:** <!-- name it <yourname>-bot, e.g. aburns-bot -->
 **Author(s):** <!-- your name(s) -->
 
 ## Checklist
 
-- [ ] I only added/changed files under `bots/<MyBotName>/`
-- [ ] The folder name and all file names match (`MyBotName.ts`, `.json`, `.sh`, `.cmd`)
-- [ ] I filled in `authors` in `MyBotName.json`
+- [ ] I only added/changed files under `bots/<yourname>-bot/`
+- [ ] The folder name and all file names match (`aburns-bot.ts`, `.json`, `.sh`, `.cmd`)
+- [ ] I filled in `authors` in `aburns-bot.json`
 - [ ] My bot boots and runs a battle locally
 - [ ] I did **not** commit `node_modules/`
 

@@ -1,127 +1,85 @@
 # 🤖 Robocode Showdown
 
-Build a tank bot, battle-test it, and fight for the trophy. This repo is
-everything you need for our Robocode [Tank Royale](https://robocode.dev/) event:
-a one-command setup, a starter bot, a stronger sparring bot, and a World Cup–style
-tournament runner.
+Write a tank bot in TypeScript, battle it, win the trophy. Everything for our
+Robocode [Tank Royale](https://robocode.dev/) event lives here.
 
-**You write TypeScript. The tank does the rest.**
+## Requirements
 
----
+| Need | Version | For |
+| ---- | ------- | --- |
+| [Node.js](https://nodejs.org/) | 22+ | authoring/running bots |
+| [Java](https://adoptium.net/) | 11+ | running the Robocode app |
 
-## ⏱️ Get battling in 5 minutes
-
-You need two things installed: **[Node.js](https://nodejs.org/) 22 or newer** (repo pins 22.17.1 in `.nvmrc`) and
-**[Java](https://adoptium.net/) 11+** (Java runs the Robocode app itself).
+## Setup
 
 ```bash
-# 1. Clone and install
 git clone https://github.com/alex-burnzie/robocode-showdown robocode-showdown
 cd robocode-showdown
-npm run setup            # installs the bot API (once)
-
-# 2. Download & launch the Robocode GUI  (the .jar — see docs/QUICKSTART.md)
-java -jar robocode-tankroyale-gui-x.y.z.jar
-
-# 3. Make your own bot — name it after yourself
-npm run new-bot -- YourName
+npm run setup                 # installs the bot API (run once)
+npm run new-bot -- aburns-bot   # scaffolds bots/aburns-bot/ — name it <yourname>-bot
 ```
 
-Then in the GUI: **Start a server → add the `bots/` folder as a bot directory →
-Boot your bot → start a battle against `SampleBot` or `Hunter`.**
+Then download and launch the GUI:
 
-Full step-by-step (with screenshots of where to click): **[docs/QUICKSTART.md](docs/QUICKSTART.md)**
+```bash
+java -jar robocode-tankroyale-gui-1.0.2.jar
+```
 
----
+In the GUI: **Start a server → add the `bots/` folder as a bot directory → Boot
+your bot → start a battle against `SampleBot` or `Hunter`.**
 
-## 🧠 Writing your bot
+Download link and click-by-click walkthrough: **[docs/QUICKSTART.md](docs/QUICKSTART.md)**
 
-Your bot is one TypeScript class. The interesting parts:
+## Writing your bot
+
+Your bot is one TypeScript class:
 
 ```ts
 override run() {
-  // Called once per round. Your main movement loop.
   while (this.isRunning()) { this.forward(100); this.turnGunLeft(360); }
 }
-
-override onScannedBot(e: ScannedBotEvent) {
-  this.fire(1);          // you only "see" enemies here — so aim & fire here
-}
-
-override onHitByBullet(e: HitByBulletEvent) {
-  this.turnRight(90);    // got hit — dodge
-}
+override onScannedBot(e: ScannedBotEvent) { this.fire(1); }   // aim & fire here
+override onHitByBullet(e: HitByBulletEvent) { this.turnRight(90); }  // dodge
 ```
 
-- **`bots/SampleBot/`** — the simplest bot, heavily commented. Read this first.
-- **`bots/Hunter/`** — radar lock + predictive aim. Your real sparring partner and
-  a source of ideas.
-- **[docs/API_CHEATSHEET.md](docs/API_CHEATSHEET.md)** — the methods and events you'll
-  actually use, on one page.
+- Reference bots: [`bots/SampleBot/`](bots/SampleBot) (simple, start here) and [`bots/Hunter/`](bots/Hunter) (radar lock + predictive aim).
+- API on one page: **[docs/API_CHEATSHEET.md](docs/API_CHEATSHEET.md)**
+- Game physics: <https://robocode.dev/articles/intro.html>
 
-Everything on the physics (bullet damage, energy, gun heat, turn rates) is in the
-official docs: <https://robocode.dev/articles/intro.html>.
+## Submitting your bot
 
----
-
-## 📥 Submitting your bot
-
-We collect bots through **pull requests** so everything lands in one repo.
-**Name your bot after yourself** so it's easy to spot in the arena and on the bracket.
-
-1. Create your bot: `npm run new-bot -- YourName`
-2. Commit **only your bot's folder** under `bots/YourName/`.
-3. Open a PR titled `Add bot: YourName`.
-
-Details and rules: **[CONTRIBUTING.md](CONTRIBUTING.md)**.
-
-> 🔁 **You can keep improving your bot between rounds.** We re-pull `main` before
-> every tournament round, so merge your changes (same folder name) and they'll be
-> live for the next round. See the tournament guide below.
-
----
-
-## 🏆 The tournament — World Cup format
-
-At the end we run a World Cup:
-
-1. **Groups of ~4**, drawn at random.
-2. **Round-robin** inside each group (everyone plays everyone).
-3. **Top 2 of each group advance** to a single-elimination **knockout** bracket.
-4. Knockout until one bot lifts the trophy. 🥇
-
-The organizer runs battles live in the GUI (great on the big screen) and records
-results with the built-in manager:
+Submit via **pull request**. Name your bot `<yourname>-bot`.
 
 ```bash
-npm run tournament -- draw        # draw the groups
-npm run tournament -- status      # standings + bracket + what's left to play
-npm run tournament -- report A1 YourName   # record a result
-npm run tournament -- knockout    # seed the bracket once groups finish
+npm run new-bot -- aburns-bot    # creates bots/aburns-bot/
+git add bots/aburns-bot          # commit ONLY your folder
+git commit -m "Add bot: aburns-bot"
 ```
 
-Organizer runbook (including the **re-pull-between-rounds** flow):
-**[docs/TOURNAMENT.md](docs/TOURNAMENT.md)**
+Open a PR titled `Add bot: aburns-bot`. Full rules: **[CONTRIBUTING.md](CONTRIBUTING.md)**
 
----
+> 🔁 Keep improving between rounds — push to the **same folder name** and it's
+> live next round (we re-pull `main` each round).
 
-## 🗂️ What's in here
+## Tournament — World Cup format
 
-```
-robocode-showdown/
-├── bots/                  # every bot lives here; also the npm project
-│   ├── SampleBot/         # simple starter (leave in place)
-│   ├── Hunter/            # stronger sparring bot (leave in place)
-│   └── <YourBot>/         # you add this via `npm run new-bot`
-├── scripts/
-│   ├── new-bot.mjs        # scaffolds a new bot folder
-│   └── tournament.mjs     # the World Cup manager
-├── docs/
-│   ├── QUICKSTART.md      # install + first battle, click by click
-│   ├── API_CHEATSHEET.md  # the API on one page
-│   └── TOURNAMENT.md      # organizer runbook
-├── CONTRIBUTING.md        # how to submit via PR
-└── README.md
+Groups of ~4 → round-robin → top 2 advance → single-elimination knockout.
+The organizer runs battles in the GUI and records results:
+
+```bash
+npm run tournament -- draw               # draw the groups
+npm run tournament -- status             # standings, bracket, remaining games
+npm run tournament -- report A1 aburns-bot # record a result
+npm run tournament -- knockout           # seed the bracket after groups finish
 ```
 
-Have fun, and *build the best — destroy the rest.*
+Organizer runbook: **[docs/TOURNAMENT.md](docs/TOURNAMENT.md)**
+
+## Layout
+
+```
+bots/          every bot + the shared npm project (SampleBot, Hunter, <yourname>-bot)
+scripts/       new-bot.mjs (scaffold), tournament.mjs (World Cup manager)
+docs/          QUICKSTART.md, API_CHEATSHEET.md, TOURNAMENT.md
+CONTRIBUTING.md
+```

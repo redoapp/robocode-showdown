@@ -6,29 +6,29 @@ project — all bots share the one `node_modules/` here (the boot scripts look f
 
 ## Add your bot
 
-The easy way, from the repo root (**name it after yourself** so it's easy to
+The easy way, from the repo root (**name it `<yourname>-bot`** so it's easy to
 identify in the arena and on the bracket):
 
 ```bash
-npm run new-bot -- YourName
+npm run new-bot -- aburns-bot
 ```
 
-That scaffolds `bots/YourName/` with a ready-to-run `.ts`, `.json`, `.sh`, and
+That scaffolds `bots/aburns-bot/` with a ready-to-run `.ts`, `.json`, `.sh`, and
 `.cmd`, all named correctly.
 
 The important rule: **every file in a bot folder must share the folder's exact
-name.** `bots/YourName/` must contain `YourName.ts`, `YourName.json`,
-`YourName.sh`, `YourName.cmd`. The booter finds your bot by that name — a
+name.** `bots/aburns-bot/` must contain `aburns-bot.ts`, `aburns-bot.json`,
+`aburns-bot.sh`, `aburns-bot.cmd`. The booter finds your bot by that name — a
 mismatch means it won't load.
 
 ## What each file does
 
-| File            | Purpose                                                                    |
-| --------------- | -------------------------------------------------------------------------- |
-| `MyBot.ts`      | Your bot's brain.                                                          |
-| `MyBot.json`    | Metadata: `name`, `version`, `authors` (required). Displayed in the GUI.   |
-| `MyBot.sh`      | Boot script for macOS/Linux. Don't edit beyond the filename.               |
-| `MyBot.cmd`     | Boot script for Windows. Don't edit beyond the filename.                   |
+| File             | Purpose                                                                    |
+| ---------------- | -------------------------------------------------------------------------- |
+| `aburns-bot.ts`    | Your bot's brain.                                                          |
+| `aburns-bot.json`  | Metadata: `name`, `version`, `authors` (required). Displayed in the GUI.   |
+| `aburns-bot.sh`    | Boot script for macOS/Linux. Don't edit beyond the filename.               |
+| `aburns-bot.cmd`   | Boot script for Windows. Don't edit beyond the filename.                   |
 
 ## Reference bots
 
