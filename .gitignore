@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# Tournament runtime state (organizer machine only — do not commit)
+scripts/tournament-state.json
+recordings/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log

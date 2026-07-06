@@ -1,0 +1,15 @@
+{
+  "name": "robocode-showdown",
+  "version": "1.0.0",
+  "description": "Everything you need to build, test and battle Robocode Tank Royale bots at our engineering event.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "setup": "cd bots && npm install",
+    "new-bot": "node scripts/new-bot.mjs",
+    "tournament": "node scripts/tournament.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

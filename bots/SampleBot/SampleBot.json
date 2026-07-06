@@ -1,0 +1,11 @@
+{
+  "name": "SampleBot",
+  "version": "1.0",
+  "authors": [
+    "Robocode Showdown"
+  ],
+  "description": "A simple starter bot: sweep the gun, fire on scan, dodge when hit.",
+  "platform": "Node.js",
+  "programmingLang": "TypeScript",
+  "gameTypes": ["classic", "1v1", "melee"]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "robocode-showdown-bots",
+  "version": "1.0.0",
+  "description": "Shared dependencies for all Robocode Tank Royale bots in this repo.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "postinstall": "node -e \"process.stdout.write('Bot API installed. You can now boot bots from the Robocode GUI.\\n')\""
+  },
+  "dependencies": {
+    "@robocode.dev/tank-royale-bot-api": "^1.0.2",
+    "tsx": "^4.19.2",
+    "ws": "^8.18.0"
+  }
+}

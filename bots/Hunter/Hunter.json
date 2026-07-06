@@ -1,0 +1,11 @@
+{
+  "name": "Hunter",
+  "version": "1.0",
+  "authors": [
+    "Robocode Showdown"
+  ],
+  "description": "Reference bot: radar lock, predictive aim, adaptive fire power. A good sparring partner.",
+  "platform": "Node.js",
+  "programmingLang": "TypeScript",
+  "gameTypes": ["classic", "1v1", "melee"]
+}
