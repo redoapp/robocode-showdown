@@ -1,0 +1,9 @@
+{
+  "name": "joshmoody-bot",
+  "version": "1.0",
+  "authors": ["Josh Moody"],
+  "description": "joshmoody-bot — a Robocode Tank Royale bot.",
+  "platform": "Node.js",
+  "programmingLang": "TypeScript",
+  "gameTypes": ["classic", "1v1", "melee"]
+}

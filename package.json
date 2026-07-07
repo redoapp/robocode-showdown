@@ -7,6 +7,8 @@
   "scripts": {
     "setup": "cd bots && npm install",
     "new-bot": "node scripts/new-bot.mjs",
+    "battle": "node scripts/battle.mjs",
+    "gui": "node scripts/gui.mjs",
     "tournament": "node scripts/tournament.mjs"
   },
   "engines": {
