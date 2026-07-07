@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Cached Robocode jars (server/GUI, downloaded on first `npm run battle`/`gui`)
+.robocode/
+
 # Tournament runtime state (organizer machine only — do not commit)
 scripts/tournament-state.json
 recordings/

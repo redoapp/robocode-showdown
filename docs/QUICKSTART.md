@@ -25,38 +25,7 @@ cd robocode-showdown
 npm run setup     # == cd bots && npm install  (installs the TS bot API once)
 ```
 
-## 3. Install & launch the Robocode GUI
-
-Download the installer for your OS from the Tank Royale **[GitHub Releases](https://github.com/robocode-dev/tank-royale/releases)** page:
-
-| OS      | File                                     |
-| ------- | ---------------------------------------- |
-| Windows | `robocode-tank-royale-gui-1.0.2.msi`     |
-| macOS   | `robocode-tank-royale-gui-1.0.2.pkg`     |
-| Linux   | `...-gui-1.0.2.deb` or `...-gui-1.0.2.rpm` |
-
-Install and launch it. (The installers aren't code-signed, so you may need to
-click through an "unidentified developer" warning — see the release page notes.)
-
-Prefer no install? Download the portable `robocode-tankroyale-gui-1.0.2.jar` and run:
-
-```bash
-java -jar robocode-tankroyale-gui-1.0.2.jar
-```
-
-## 4. Point Robocode at this repo's bots
-
-In the GUI:
-
-1. **Config → Bot Root Directories**
-2. Add the **`bots/`** folder inside this repo (the folder that contains
-   `SampleBot/`, `Hunter/`, etc.).
-3. Save.
-
-Robocode boots bots by folder name, and each of our bots has a matching
-`.sh`/`.cmd` script, so it will find them automatically.
-
-## 5. Make your own bot
+## 3. Make your own bot
 
 From the repo root — **name your bot `<yourname>-bot`** so it's easy to spot in
 the arena and on the bracket:
@@ -69,24 +38,33 @@ This creates `bots/aburns-bot/` with everything named correctly. Open
 `bots/aburns-bot/aburns-bot.ts` in your editor and start hacking. Also edit the
 `authors` field in `aburns-bot.json` so your name shows up.
 
-## 6. Battle!
+## 4. Battle!
 
-In the GUI:
+Two commands, both run from the repo root. Each downloads the Robocode jar it
+needs on first use (cached in `.robocode/`) — no manual install or config.
 
-1. **Battle → Start Battle** (or the "New Battle" button).
-2. In the **Boot** column on the left, select `aburns-bot`, `SampleBot`, and
-   `Hunter`, and click **Boot** ▶ — this starts each bot's process.
-3. Move the booted bots into the battle, set the number of rounds, and click
-   **Start Battle**.
-4. Watch. Iterate. Repeat.
+**Fast tuning loop — headless, prints the winner:**
 
-> The GUI starts a local server for you automatically. If your bot fails to
-> connect, make sure the server is running (**green** status) and that you ran
-> `npm run setup`.
+```bash
+npm run battle -- aburns-bot Hunter            # 10 rounds vs Hunter
+npm run battle -- aburns-bot SampleBot Hunter --rounds 50   # melee, 50 rounds
+```
+
+Edit `aburns-bot.ts`, re-run, read the score, repeat. No GUI, no clicking.
+
+**Watch it visually — the GUI:**
+
+```bash
+npm run gui
+```
+
+This opens the Robocode GUI with the `bots/` folder already registered. Then:
+**Battle → Start Battle → Boot** your bot + opponents ▶ → **Start Battle**.
+Edit your `.ts` and **re-Boot** to pick up changes — no relaunch needed.
 
 ## Common gotchas
 
-- **Bot doesn't appear in the list** → the folder name and the file names must
+- **Bot doesn't appear / doesn't connect** → the folder name and file names must
   match exactly (`aburns-bot/aburns-bot.ts`). Re-run `npm run new-bot` rather than
   copying by hand.
 - **"Cannot find module @robocode.dev/..."** → you skipped `npm run setup`, or

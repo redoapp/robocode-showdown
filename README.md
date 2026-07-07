@@ -19,16 +19,20 @@ npm run setup                 # installs the bot API (run once)
 npm run new-bot -- aburns-bot   # scaffolds bots/aburns-bot/ — name it <yourname>-bot
 ```
 
-Then download and launch the GUI:
+## Iterate on your bot
+
+Two single commands — both auto-download the Robocode jars on first run (cached
+in `.robocode/`, git-ignored). No manual GUI config:
 
 ```bash
-java -jar robocode-tankroyale-gui-1.0.2.jar
+npm run battle -- joshmoody-bot Hunter   # headless: boots both bots, runs 10 rounds, prints the winner
+npm run gui                              # opens the GUI with bots/ already registered — just Boot & watch
 ```
 
-In the GUI: **Start a server → add the `bots/` folder as a bot directory → Boot
-your bot → start a battle against `SampleBot` or `Hunter`.**
-
-Download link and click-by-click walkthrough: **[docs/QUICKSTART.md](docs/QUICKSTART.md)**
+`npm run battle` is the fast tuning loop — edit your `.ts`, re-run, read the
+score, repeat (add `--rounds 50` for a steadier signal, or pass 3+ bots for a
+melee). `npm run gui` is for *watching* the fight visually. Walkthrough:
+**[docs/QUICKSTART.md](docs/QUICKSTART.md)**
 
 ## Writing your bot
 
