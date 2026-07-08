@@ -27,12 +27,13 @@ organizer can pull them all at once.
 - ✅ **Only touch your own folder**, `bots/aburns-bot/`. Don't edit other bots,
   shared config, `package.json`, or the scripts.
 - ✅ **Folder name == file names.** `bots/aburns-bot/` must contain
-  `aburns-bot.ts`, `.json`, `.sh`, `.cmd`. (The `new-bot` script does this for
-  you — use it instead of copy-pasting.)
+  `aburns-bot.ts` (or `.py`), `.json`, `.sh`, `.cmd`. (The `new-bot` script does
+  this for you — use it instead of copy-pasting; pass `--python` for a Python
+  bot.)
 - ✅ **Fill in `authors`** in your `.json` so you get credit on the scoreboard.
 - ✅ **Your bot must boot and run a battle** locally before you submit.
-- 🚫 **Don't commit `node_modules/`** — it's gitignored; the organizer runs
-  `npm run setup` once on the host.
+- 🚫 **Don't commit `node_modules/` or `.venv/`** — they're gitignored; the
+  organizer runs `npm run setup` (and `npm run setup:python`) once on the host.
 - 🚫 No network calls, no reading/writing files outside your bot, no trying to
   crash the server. Keep it a fair fight. 🙂
 

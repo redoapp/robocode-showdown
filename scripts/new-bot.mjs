@@ -3,10 +3,11 @@
  * Scaffold a new bot folder under bots/ from a template.
  *
  *   npm run new-bot -- aburns-bot
+ *   npm run new-bot -- aburns-bot --python
  *   node scripts/new-bot.mjs aburns-bot "Your Name"
  *
- * Creates bots/aburns-bot/ with aburns-bot.{ts,json,sh,cmd}, all named to match
- * the folder (required by the Robocode booter).
+ * Creates bots/aburns-bot/ with aburns-bot.{ts,json,sh,cmd} (or .py with
+ * --python), all named to match the folder (required by the Robocode booter).
  */
 import { mkdirSync, writeFileSync, existsSync, chmodSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -15,11 +16,14 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const botsDir = join(__dirname, "..", "bots");
 
-const name = process.argv[2];
-const author = process.argv[3] || "Anonymous";
+const args = process.argv.slice(2);
+const usePython = args.includes("--python");
+const positional = args.filter((a) => !a.startsWith("--"));
+const name = positional[0];
+const author = positional[1] || "Anonymous";
 
 if (!name) {
-  console.error("Usage: npm run new-bot -- <BotName> [\"Author Name\"]");
+  console.error("Usage: npm run new-bot -- <BotName> [\"Author Name\"] [--python]");
   process.exit(1);
 }
 if (!/^[A-Za-z][A-Za-z0-9-]*$/.test(name)) {
@@ -87,35 +91,86 @@ class ${className} extends Bot {
 ${className}.main();
 `;
 
+const py = `"""
+${name} — good luck!
+
+See docs/API_CHEATSHEET.md for the most useful methods and events.
+Boot it locally: start the server in the Robocode GUI, then run this bot
+from the GUI's bot list (or ./${name}.sh from a terminal).
+"""
+from robocode_tank_royale.bot_api.bot import Bot
+from robocode_tank_royale.bot_api.events import ScannedBotEvent, HitByBulletEvent, HitWallEvent
+
+
+class ${className}(Bot):
+    # Runs once at the start of each round. Your main loop goes here.
+    def run(self) -> None:
+        while self.running:
+            self.forward(100)
+            self.turn_gun_left(360)
+            self.back(100)
+            self.turn_gun_left(360)
+
+    # Fires when the radar sweeps across an enemy — this is when you shoot.
+    def on_scanned_bot(self, e: ScannedBotEvent) -> None:
+        self.fire(1)
+
+    # Fires when an enemy bullet hits you — dodge!
+    def on_hit_by_bullet(self, e: HitByBulletEvent) -> None:
+        bearing = self.calc_bearing(e.bullet.direction)
+        self.turn_right(90 - bearing)
+
+    # Fires when you drive into a wall.
+    def on_hit_wall(self, e: HitWallEvent) -> None:
+        self.back(50)
+        self.turn_right(45)
+
+
+if __name__ == "__main__":
+    ${className}().start()
+`;
+
 const json = JSON.stringify(
   {
     name,
     version: "1.0",
     authors: [author],
     description: `${name} — a Robocode Tank Royale bot.`,
-    platform: "Node.js",
-    programmingLang: "TypeScript",
+    platform: usePython ? "Python" : "Node.js",
+    programmingLang: usePython ? "Python 3" : "TypeScript",
     gameTypes: ["classic", "1v1", "melee"],
   },
   null,
   2
 ) + "\n";
 
-const sh = `#!/bin/sh
+const sh = usePython
+  ? `#!/bin/sh
+set -e
+cd -- "$(dirname -- "$0")"
+exec "../.venv/bin/python" -u "${name}.py"
+`
+  : `#!/bin/sh
 set -e
 cd -- "$(dirname -- "$0")"
 export NODE_OPTIONS="--disable-warning=ExperimentalWarning"
 exec "../node_modules/.bin/tsx" "${name}.ts"
 `;
 
-const cmd = `@echo off
+const cmd = usePython
+  ? `@echo off
+cd /d "%~dp0"
+..\\.venv\\Scripts\\python.exe -u ${name}.py
+`
+  : `@echo off
 cd /d "%~dp0"
 set NODE_OPTIONS=--disable-warning=ExperimentalWarning
 ..\\node_modules\\.bin\\tsx ${name}.ts
 `;
 
+const srcExt = usePython ? "py" : "ts";
 mkdirSync(dir, { recursive: true });
-writeFileSync(join(dir, `${name}.ts`), ts);
+writeFileSync(join(dir, `${name}.${srcExt}`), usePython ? py : ts);
 writeFileSync(join(dir, `${name}.json`), json);
 writeFileSync(join(dir, `${name}.sh`), sh);
 writeFileSync(join(dir, `${name}.cmd`), cmd);
@@ -126,11 +181,15 @@ try {
 }
 
 console.log(`Created bots/${name}/`);
-console.log(`  ${name}.ts    <- write your bot here`);
+console.log(`  ${name}.${srcExt}    <- write your bot here`);
 console.log(`  ${name}.json  <- edit authors / description`);
 console.log(`  ${name}.sh / ${name}.cmd  <- boot scripts (leave these alone)`);
 console.log("");
 console.log("Next:");
-console.log("  1. cd bots && npm install   (only needed once)");
+if (usePython) {
+  console.log("  1. npm run setup:python   (only needed once — creates bots/.venv)");
+} else {
+  console.log("  1. cd bots && npm install   (only needed once)");
+}
 console.log("  2. Start the server in the Robocode GUI");
 console.log(`  3. Boot ${name} from the GUI and battle it against SampleBot / Hunter`);

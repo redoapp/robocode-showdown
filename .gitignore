@@ -1,6 +1,10 @@
 # Dependencies
 node_modules/
 
+# Python (bots/.venv is created by `npm run setup:python`)
+.venv/
+__pycache__/
+
 # Cached Robocode jars (server/GUI, downloaded on first `npm run battle`/`gui`)
 .robocode/
 

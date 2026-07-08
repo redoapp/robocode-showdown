@@ -6,6 +6,7 @@
   "private": true,
   "scripts": {
     "setup": "cd bots && npm install",
+    "setup:python": "node scripts/setup-python.mjs",
     "new-bot": "node scripts/new-bot.mjs",
     "battle": "node scripts/battle.mjs",
     "gui": "node scripts/gui.mjs",

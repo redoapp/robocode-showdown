@@ -17,6 +17,13 @@ node -v         # want v22+; if you use nvm, run `nvm use` to match .nvmrc
                 # no Node yet? install from https://nodejs.org/
 ```
 
+**Python 3.10+** — *only* if you plan to write your bot in Python (Node.js is
+still required either way; it runs the repo's battle/GUI scripts):
+
+```bash
+python3 --version   # want 3.10+; install from https://www.python.org/ or `brew install python@3.12`
+```
+
 ## 2. Clone the repo and install the bot API
 
 ```bash
@@ -25,18 +32,25 @@ cd robocode-showdown
 npm run setup     # == cd bots && npm install  (installs the TS bot API once)
 ```
 
+Writing your bot in Python? Also run:
+
+```bash
+npm run setup:python   # creates bots/.venv with the Python bot API (once)
+```
+
 ## 3. Make your own bot
 
 From the repo root — **name your bot `<yourname>-bot`** so it's easy to spot in
 the arena and on the bracket:
 
 ```bash
-npm run new-bot -- aburns-bot
+npm run new-bot -- aburns-bot            # TypeScript (default)
+npm run new-bot -- aburns-bot --python   # …or Python
 ```
 
 This creates `bots/aburns-bot/` with everything named correctly. Open
-`bots/aburns-bot/aburns-bot.ts` in your editor and start hacking. Also edit the
-`authors` field in `aburns-bot.json` so your name shows up.
+`bots/aburns-bot/aburns-bot.ts` (or `.py`) in your editor and start hacking.
+Also edit the `authors` field in `aburns-bot.json` so your name shows up.
 
 ## 4. Battle!
 

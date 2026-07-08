@@ -1,0 +1,4 @@
+# Shared Python dependencies for all Python bots in this repo.
+# Installed into bots/.venv by `npm run setup:python` (the .sh/.cmd boot
+# scripts look for ../.venv/bin/python).
+robocode-tank-royale>=1.0.2
