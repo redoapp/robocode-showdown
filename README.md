@@ -1,14 +1,15 @@
 # 🤖 Robocode Showdown
 
-Write a tank bot in TypeScript, battle it, win the trophy. Everything for our
-Robocode [Tank Royale](https://robocode.dev/) event lives here.
+Write a tank bot in TypeScript or Python, battle it, win the trophy. Everything
+for our Robocode [Tank Royale](https://robocode.dev/) event lives here.
 
 ## Requirements
 
 | Need | Version | For |
 | ---- | ------- | --- |
-| [Node.js](https://nodejs.org/) | 22+ | authoring/running bots |
+| [Node.js](https://nodejs.org/) | 22+ | authoring/running bots, repo scripts |
 | [Java](https://adoptium.net/) | 11+ | running the Robocode app |
+| [Python](https://www.python.org/) | 3.10+ | only if you write your bot in Python |
 
 ## Setup
 
@@ -17,6 +18,13 @@ git clone https://github.com/alex-burnzie/robocode-showdown robocode-showdown
 cd robocode-showdown
 npm run setup                 # installs the bot API (run once)
 npm run new-bot -- aburns-bot   # scaffolds bots/aburns-bot/ — name it <yourname>-bot
+```
+
+Prefer Python? One extra setup step, then scaffold with `--python`:
+
+```bash
+npm run setup:python                     # creates bots/.venv with the Python bot API (run once)
+npm run new-bot -- aburns-bot --python   # scaffolds a Python bot instead
 ```
 
 ## Iterate on your bot
@@ -36,7 +44,7 @@ melee). `npm run gui` is for *watching* the fight visually. Walkthrough:
 
 ## Writing your bot
 
-Your bot is one TypeScript class:
+Your bot is one class — TypeScript:
 
 ```ts
 override run() {
@@ -46,7 +54,16 @@ override onScannedBot(e: ScannedBotEvent) { this.fire(1); }   // aim & fire here
 override onHitByBullet(e: HitByBulletEvent) { this.turnRight(90); }  // dodge
 ```
 
-- Reference bots: [`bots/SampleBot/`](bots/SampleBot) (simple, start here) and [`bots/Hunter/`](bots/Hunter) (radar lock + predictive aim).
+…or Python (same API, snake_case names):
+
+```py
+def run(self):
+    while self.running: self.forward(100); self.turn_gun_left(360)
+def on_scanned_bot(self, e): self.fire(1)          # aim & fire here
+def on_hit_by_bullet(self, e): self.turn_right(90)  # dodge
+```
+
+- Reference bots: [`bots/SampleBot/`](bots/SampleBot) (simple, start here), [`bots/SamplePyBot/`](bots/SamplePyBot) (the same bot in Python), and [`bots/Hunter/`](bots/Hunter) (radar lock + predictive aim).
 - API on one page: **[docs/API_CHEATSHEET.md](docs/API_CHEATSHEET.md)**
 - Game physics: <https://robocode.dev/articles/intro.html>
 
@@ -82,8 +99,8 @@ Organizer runbook: **[docs/TOURNAMENT.md](docs/TOURNAMENT.md)**
 ## Layout
 
 ```
-bots/          every bot + the shared npm project (SampleBot, Hunter, <yourname>-bot)
-scripts/       new-bot.mjs (scaffold), tournament.mjs (World Cup manager)
+bots/          every bot + the shared npm project & Python venv (SampleBot, SamplePyBot, Hunter, <yourname>-bot)
+scripts/       new-bot.mjs (scaffold), setup-python.mjs, tournament.mjs (World Cup manager)
 docs/          QUICKSTART.md, API_CHEATSHEET.md, TOURNAMENT.md
 CONTRIBUTING.md
 ```

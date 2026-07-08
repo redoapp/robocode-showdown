@@ -1,0 +1,11 @@
+{
+  "name": "SamplePyBot",
+  "version": "1.0",
+  "authors": [
+    "Robocode Showdown"
+  ],
+  "description": "The Python twin of SampleBot: sweep the gun, fire on scan, dodge when hit.",
+  "platform": "Python",
+  "programmingLang": "Python 3",
+  "gameTypes": ["classic", "1v1", "melee"]
+}

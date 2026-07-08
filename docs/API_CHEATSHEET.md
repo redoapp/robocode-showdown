@@ -6,6 +6,12 @@ The methods and events you'll actually reach for, on one page. Full reference:
 All of these are methods on your bot (`this.forward(...)`, etc.). Import event
 types from `@robocode.dev/tank-royale-bot-api`.
 
+**Writing in Python?** Same API, snake_case names: `this.turnGunLeft(360)` →
+`self.turn_gun_left(360)`, `onScannedBot` → `on_scanned_bot`, `setForward` →
+`set_forward`, `isRunning()` → the `self.running` property. Import from
+`robocode_tank_royale.bot_api`. Full reference:
+<https://robocode-dev.github.io/tank-royale/api/python/>.
+
 ## The mental model
 
 - Your tank has **3 parts that turn independently**: body, gun, radar.
