@@ -10,5 +10,6 @@
   "gameTypes": [
     "classic",
     "1v1"
-  ]
+  ],
+  "tournament": true
 }
