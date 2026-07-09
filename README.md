@@ -82,18 +82,20 @@ Open a PR titled `Add bot: aburns-bot`. Full rules: **[CONTRIBUTING.md](CONTRIBU
 > 🔁 Keep improving between rounds — push to the **same folder name** and it's
 > live next round (we re-pull `main` each round).
 
-## Tournament — World Cup format
+## Tournament — melee groups + knockout
 
-Groups of ~4 → round-robin → top 2 advance → single-elimination knockout.
+Groups of ~4 → **one melee battle per group** → top 2 finishers advance →
+single-elimination 1v1 knockout.
 Bots enter by opting in — `"tournament": true` in your bot's `.json`, already
 set by `new-bot` — so the reference bots stay out of the draw automatically.
 The organizer runs battles in the GUI and records results:
 
 ```bash
-npm run tournament -- draw               # draw the groups
-npm run tournament -- status             # standings, bracket, remaining games
-npm run tournament -- report A1 aburns-bot # record a result
-npm run tournament -- knockout           # seed the bracket after groups finish
+npm run tournament -- draw                           # draw the groups
+npm run tournament -- status                         # placements, bracket, remaining battles
+npm run tournament -- report A aburns-bot,other-bot  # group melee finishing order
+npm run tournament -- report K1-1 aburns-bot         # knockout result
+npm run tournament -- knockout                       # seed the bracket after groups finish
 ```
 
 Organizer runbook: **[docs/TOURNAMENT.md](docs/TOURNAMENT.md)**
@@ -102,7 +104,7 @@ Organizer runbook: **[docs/TOURNAMENT.md](docs/TOURNAMENT.md)**
 
 ```
 bots/          every bot + the shared npm project & Python venv (SampleBot, SamplePyBot, Hunter, <yourname>-bot)
-scripts/       new-bot.mjs (scaffold), setup-python.mjs, tournament.mjs (World Cup manager)
+scripts/       new-bot.mjs (scaffold), setup-python.mjs, tournament.mjs (tournament manager)
 docs/          QUICKSTART.md, API_CHEATSHEET.md, TOURNAMENT.md
 CONTRIBUTING.md
 ```

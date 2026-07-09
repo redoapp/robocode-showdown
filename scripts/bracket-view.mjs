@@ -4,8 +4,8 @@
  * =======================================
  *
  * Serves an auto-refreshing HTML page that visualizes the tournament from
- * scripts/tournament-state.json: group standings while the group stage runs,
- * then the knockout bracket with the full path to the Final (future rounds
+ * scripts/tournament-state.json: group melee placements while the group stage
+ * runs, then the knockout bracket with the full path to the Final (future rounds
  * shown as TBD). Re-reads the state file on every poll, so keep it open on
  * the projector and it updates a couple of seconds after each
  * `npm run tournament -- report ...`.
@@ -45,52 +45,20 @@ const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 // ---------------------------------------------------------------------------
-// Standings (mirrors tournament.mjs, which is a CLI and can't be imported
-// without running it)
+// Group placements (mirrors tournament.mjs, which is a CLI and can't be
+// imported without running it). Each group is a single melee battle; its
+// result is the finishing order, best first (at least the top 2).
 // ---------------------------------------------------------------------------
-const WIN_POINTS = 3;
-const DRAW_POINTS = 1;
-
-function standingsFor(group) {
-  const table = new Map();
+function placementsFor(group) {
+  const result = group.result ?? [];
+  const rows = result.map((bot, i) => ({ bot, place: i + 1 }));
   for (const bot of group.bots) {
-    table.set(bot, { bot, played: 0, wins: 0, draws: 0, losses: 0, points: 0 });
+    if (!result.includes(bot)) rows.push({ bot, place: null });
   }
-  for (const m of group.matches) {
-    if (!m.winner) continue;
-    if (m.winner === "draw") {
-      for (const bot of [m.a, m.b]) {
-        table.get(bot).played++;
-        table.get(bot).draws++;
-        table.get(bot).points += DRAW_POINTS;
-      }
-    } else {
-      const loser = m.winner === m.a ? m.b : m.a;
-      table.get(m.winner).played++;
-      table.get(loser).played++;
-      table.get(m.winner).wins++;
-      table.get(loser).losses++;
-      table.get(m.winner).points += WIN_POINTS;
-    }
-  }
-  const rows = [...table.values()];
-  rows.sort((x, y) => {
-    if (y.points !== x.points) return y.points - x.points;
-    if (y.wins !== x.wins) return y.wins - x.wins;
-    const h2h = group.matches.find(
-      (m) => m.winner && m.winner !== "draw" && ((m.a === x.bot && m.b === y.bot) || (m.a === y.bot && m.b === x.bot))
-    );
-    if (h2h) {
-      if (h2h.winner === x.bot) return -1;
-      if (h2h.winner === y.bot) return 1;
-    }
-    if (x.losses !== y.losses) return x.losses - y.losses;
-    return x.bot.localeCompare(y.bot);
-  });
   return rows;
 }
 
-const groupComplete = (g) => g.matches.every((m) => m.winner);
+const groupComplete = (g) => Array.isArray(g.result) && g.result.length >= 2;
 
 // ---------------------------------------------------------------------------
 // Bracket model: real rounds + projected TBD rounds down to the Final
@@ -234,30 +202,28 @@ function renderGroups(state) {
   const cards = state.groups
     .map((g) => {
       const done = groupComplete(g);
-      const rows = standingsFor(g)
-        .map((r, i) => {
-          // Like the CLI, only mark qualifiers once the group is decided.
-          const qualifies = done && i < 2;
+      const rows = placementsFor(g)
+        .map((r) => {
+          const qualifies = r.place !== null && r.place <= 2;
           return `<tr class="${qualifies ? "qualifies" : ""}">
+            <td class="place">${r.place === null ? "–" : r.place}</td>
             <td class="botname">${qualifies ? "<span class='arrow'>→</span>" : ""}${esc(r.bot)}</td>
-            <td>${r.played}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td>
-            <td class="pts">${r.points}</td>
           </tr>`;
         })
         .join("\n");
       return `<div class="group">
-        <div class="group-name">Group ${esc(g.name)}${done ? '<span class="done">complete</span>' : ""}</div>
+        <div class="group-name">Group ${esc(g.name)}${done ? '<span class="done">melee played</span>' : '<span class="done">melee pending</span>'}</div>
         <table>
-          <thead><tr><th>Bot</th><th>P</th><th>W</th><th>D</th><th>L</th><th>Pts</th></tr></thead>
+          <thead><tr><th>#</th><th>Bot</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>`;
     })
     .join("\n");
 
-  const total = state.groups.reduce((n, g) => n + g.matches.length, 0);
-  const played = state.groups.reduce((n, g) => n + g.matches.filter((m) => m.winner).length, 0);
-  return `<div class="stage-note">Group stage — ${played} of ${total} matches played. Top 2 of each group advance to the knockout.</div>
+  const total = state.groups.length;
+  const played = state.groups.filter(groupComplete).length;
+  return `<div class="stage-note">Group stage — ${played} of ${total} group melees played. Top 2 of each group advance to the knockout.</div>
     <div id="groups">${cards}</div>`;
 }
 
@@ -357,7 +323,7 @@ function renderPage() {
   th:first-child { text-align: left; }
   td { padding: 5px 7px; text-align: center; font-variant-numeric: tabular-nums; }
   td.botname { text-align: left; }
-  td.pts { font-weight: 650; }
+  td.place { color: var(--muted); width: 28px; }
   tr.qualifies td.botname { font-weight: 600; }
   .arrow { color: var(--accent); margin-right: 5px; }
 </style>

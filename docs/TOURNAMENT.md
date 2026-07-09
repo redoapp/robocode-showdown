@@ -1,11 +1,16 @@
 # Tournament runbook (organizer)
 
-This is the guide for whoever runs the competition. Format: **World Cup** —
-groups of ~4, round-robin, top 2 advance, single-elimination knockout.
+This is the guide for whoever runs the competition. Format: groups of ~4, **one
+melee battle per group** (all group-mates in a single free-for-all), top 2
+finishers advance, single-elimination 1v1 knockout.
 
-The `scripts/tournament.mjs` manager handles the draw, standings, and bracket.
+Why melee groups? With ~16 bots a round-robin group stage is 24 matches; melee
+groups cut that to 4 battles, everyone still sees their bot fight on the big
+screen at least once, and a 4-tank brawl is a great spectacle.
+
+The `scripts/tournament.mjs` manager handles the draw, placements, and bracket.
 You run the actual battles in the Robocode GUI (best for the projector) and type
-the winners back in. State is saved to `scripts/tournament-state.json`, so you can
+the results back in. State is saved to `scripts/tournament-state.json`, so you can
 stop and resume any time.
 
 ## Before the event
@@ -19,7 +24,7 @@ stop and resume any time.
 ## The flow at a glance
 
 ```
-collect PRs  ──►  git pull  ──►  draw  ──►  play group matches  ──►  report each
+collect PRs  ──►  git pull  ──►  draw  ──►  play each group's melee  ──►  report order
    ──►  knockout (seed bracket)  ──►  play + report each round  ──►  🏆
         ▲                                   │
         └────────  git pull between rounds ─┘   (people keep improving bots)
@@ -47,8 +52,8 @@ npm run tournament -- draw
   `bots/<name>/<name>.json`. `new-bot` sets it automatically, so submitted bots
   are in by default; the reference bots (`SampleBot`, `SamplePyBot`, `Hunter`)
   aren't flagged and stay out. The draw prints who was skipped.
-- Bots are auto-split into balanced groups of ~4 and round-robin fixtures are
-  generated (`A1`, `A2`, … per group).
+- Bots are auto-split into balanced groups of ~4. Each group fights **one melee
+  battle** (its id is just the group letter: `A`, `B`, …).
 - Need a fill-in to even out a group? `npm run tournament -- draw --include Hunter`
   pulls in a bot that hasn't opted in. `--all` takes every bot regardless of the
   flag, and `--exclude A,B` drops bots even if they opted in.
@@ -62,21 +67,24 @@ npm run tournament -- status
 
 ## 3. Play the group stage
 
-For each fixture, run that 1v1 battle in the GUI (a decent default: **best of
-odd number of rounds**, e.g. 10 rounds — the bot with the higher total score /
-last standing wins the tie). Then record it:
+One battle per group: boot **all of the group's bots into a single melee** in
+the GUI (a decent default: **10–20 rounds** — melee rounds are chaotic, so more
+rounds gives a steadier signal). When it ends, the GUI's results screen ranks
+the bots by total score — that ranking is the group's finishing order. Record
+it top-down, comma-separated (at least the top 2; the rest is optional but nice
+for the big screen):
 
 ```bash
-npm run tournament -- report A1 NightHawk     # NightHawk beat its A1 opponent
-npm run tournament -- report A2 draw           # rare, but supported in groups
+npm run tournament -- report A NightHawk,TankGod,SlowBot,WallHugger
+npm run tournament -- report B NightOwl,Crusher            # top 2 is enough
 ```
 
-`npm run tournament -- next` lists what's left to play. Standings update live
-(**Pts**: win = 3, draw = 1). The top 2 of each group are marked `→`.
+`npm run tournament -- next` lists what's left to play. The top 2 of each group
+are marked `→`. There are no draws — if two bots tie on total score for a
+qualifying spot, go by 1st-place counts, or just re-run the melee.
 
-Tie-breaks are handled automatically: points, then wins, then head-to-head, then
-fewer losses. If two bots are still dead level for a qualifying spot, just replay
-that pairing and report the winner.
+Mistyped an order? Report it again — the latest report wins (as long as the
+knockout isn't seeded yet).
 
 ## 4. 🔁 Re-pull between rounds (let people iterate)
 
@@ -96,13 +104,17 @@ Then keep going — `status`, `report`, etc. all still work against the same
 bracket. (New *folders* added after the draw won't join a bracket already in
 progress; only code changes to already-drawn bots take effect.)
 
+> Heads-up for competitors: melee rewards different tactics than 1v1
+> (crossfire-dodging, not being the biggest threat). Since the group stage is
+> melee and the knockout is 1v1, iterating between rounds matters!
+
 > If a `git pull` ever removes a bot folder that's in the bracket, `status` warns
 > you. That bot still needs its folder present to boot — restore it before its
 > next match.
 
 ## 5. Seed the knockout bracket
 
-Once every group match is reported:
+Once every group melee is reported:
 
 ```bash
 npm run tournament -- knockout
@@ -130,10 +142,12 @@ all the way to the **Final**. When you report the final, it prints the champion.
 
 ```
 npm run tournament -- draw [--all] [--include A,B] [--exclude A,B]
-                                             Draw groups & fixtures (opted-in bots)
-npm run tournament -- status                 Standings + bracket + pending (default)
-npm run tournament -- next                   Just the matches left to play
-npm run tournament -- report <id> <winner>   Record a result (winner name, or "draw")
+                                             Draw group melees (opted-in bots)
+npm run tournament -- status                 Placements + bracket + pending (default)
+npm run tournament -- next                   Just the battles left to play
+npm run tournament -- report <group> first,second[,third,...]
+                                             Record a group melee's finishing order
+npm run tournament -- report <id> <winner>   Record a knockout result
 npm run tournament -- knockout               Seed the bracket after the group stage
 npm run tournament -- bracket                Show the knockout bracket
 npm run tournament -- reset                  Wipe all state and start over
@@ -150,8 +164,8 @@ Opens a browser page (default `http://localhost:4600`) that visualizes
 `tournament-state.json` and refreshes itself every couple of seconds — leave it
 on the projector and it updates on its own as you `report` results:
 
-- **Group stage**: live standings per group; qualifiers get marked once a group
-  is complete.
+- **Group stage**: each group's melee placements; the top 2 get marked as
+  qualifiers once the melee is reported.
 - **Knockout**: the bracket with the full path to the Final — future rounds are
   drawn as dashed TBD cards, and bots whose next opponent isn't decided yet are
   seeded forward as soon as their match is reported.
@@ -163,7 +177,8 @@ Flags: `--port 4600`, `--no-open` (don't auto-open a browser), `--state <path>`
 ## Tips for running it live
 
 - Put the GUI on the projector and narrate the battles — it's the fun part.
-- Keep rounds short (10 rounds each) so you can get through a lot of matches.
+- With 16 bots the whole event is ~11 battles: 4 group melees + 7 knockout
+  matches. 10–20 rounds per melee and ~10 per knockout match keeps it moving.
 - Consider the **[Tank Royale Viewer](https://github.com/jandurovec/tank-royale-viewer)**
   for a slicker big-screen display.
 - `tournament-state.json` is your source of truth — back it up if you're paranoid.
