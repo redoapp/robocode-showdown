@@ -15,7 +15,8 @@ const GUN_BINS = 31;
 const GUN_MIDDLE = (GUN_BINS - 1) / 2;
 const DISTANCE_SEGMENTS = 5;
 const VELOCITY_SEGMENTS = 5;
-const LEARNING_FIREPOWER = 1.9;
+const LEARNING_FIREPOWER = 1.5;
+const GUN_ROLLING_WINDOW = 32;
 const SURF_BINS = 47;
 const SURF_MIDDLE = (SURF_BINS - 1) / 2;
 
@@ -215,7 +216,7 @@ class DangrundBot extends Bot {
       ? this.hitsTaken >= 3
         ? 300
         : 105
-      : 390;
+      : 520;
     const distanceCorrection = Math.max(
       -25,
       Math.min(50, (distance - preferredDistance) / 6),
@@ -590,6 +591,7 @@ class DangrundBot extends Bot {
           Math.min(GUN_BINS - 1, Math.round(factor * GUN_MIDDLE + GUN_MIDDLE)),
         );
         for (let i = 0; i < GUN_BINS; i += 1) {
+          wave.buffer[i] *= 1 - 1 / GUN_ROLLING_WINDOW;
           wave.buffer[i] += 1 / ((index - i) ** 2 + 1);
         }
       } else {
