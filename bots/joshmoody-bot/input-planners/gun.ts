@@ -4,12 +4,12 @@ import { botVec, distance, inferredPosition, Vector } from "../geometry";
 import { InputPlanner } from "../input";
 
 const LAST_SEEN_THRESHOLD = 10;
-const PREDICTION_ITERATIONS = 5;
-const AIM_TOLERANCE = 5;
+const PREDICTION_ITERATIONS = 10;
+const AIM_TOLERANCE = 16;
 
 const BULLET_POWER_DISTANCE = {
-  MAX: 100,
-  MIN: 500,
+  MAX: 50,
+  MIN: 800,
 };
 
 const BULLET_POWER = {
@@ -45,22 +45,8 @@ export const createGunPlanner: () => InputPlanner = () => {
       return;
     }
 
-    const strategy: "direct" | "predict" =
-      Math.random() < 0.5 ? "direct" : "predict";
-
     const power = bulletPower(enemyPos.distance);
     const bulletSpeed = bulletVelocity(power);
-
-    if (strategy === "direct") {
-      const value = context.self.gunBearingTo(enemyPos.x, enemyPos.y);
-      if (canShoot(context) && withinAimTolerance(context, enemyPos)) {
-        context.self.setFire(power);
-      }
-      return {
-        value,
-        interrupt: true,
-      };
-    }
 
     let futurePos: Vector = enemyPos;
     for (let i = 0; i < PREDICTION_ITERATIONS; i++) {
@@ -68,7 +54,10 @@ export const createGunPlanner: () => InputPlanner = () => {
       const turnsToTarget = distanceToTarget / bulletSpeed;
       futurePos = inferredPosition(enemy, turnsToTarget) ?? futurePos;
     }
-    const value = context.self.gunBearingTo(futurePos.x, futurePos.y);
+    const directValue = context.self.gunBearingTo(enemyPos.x, enemyPos.y);
+    const predictedValue = context.self.gunBearingTo(futurePos.x, futurePos.y);
+
+    const value = directValue + Math.random() * (predictedValue - directValue);
 
     if (canShoot(context) && withinAimTolerance(context, futurePos)) {
       context.self.setFire(power);

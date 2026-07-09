@@ -3,10 +3,12 @@ import { targetedEnemy } from "../enemy";
 import { botVec, squareV, subtractV, Vector } from "../geometry";
 import { InputPlanner } from "../input";
 
-const REPOSITION_TURNS = 200;
-const REPOSITION_TURNS_ALLOTTED = 100;
-const WALL_BUFFER = 100;
-const PROJECTION_DISTANCE = WALL_BUFFER * 0.8;
+const REPOSITION_TURNS = 100;
+const REPOSITION_TURNS_ALLOTTED = 70;
+const WALL_BUFFER = 50;
+const MAX_ROT_ANGLE = 100;
+const PROJECTION_DISTANCE = WALL_BUFFER * 0.5;
+const ANGLE_FACTOR = 1.1;
 
 export const createRotationPlanner: () => InputPlanner = () => {
   let lastRepositionTurn = -Infinity;
@@ -20,17 +22,18 @@ export const createRotationPlanner: () => InputPlanner = () => {
       interrupt: boolean;
     };
 
-    if (context.self.getTurnNumber() - lastRepositionTurn > REPOSITION_TURNS) {
-      lastRepositionTurn = context.self.getTurnNumber();
-      rawResult = repositionAwayFromEnemies(context);
-    }
-
-    if (
-      context.self.getTurnNumber() - lastRepositionTurn <
-      REPOSITION_TURNS_ALLOTTED
-    ) {
-      return;
-    }
+    // Makes things worse
+    // if (context.self.getTurnNumber() - lastRepositionTurn > REPOSITION_TURNS) {
+    //   lastRepositionTurn = context.self.getTurnNumber();
+    //   rawResult = repositionAwayFromEnemies(context);
+    // }
+    //
+    // if (
+    //   context.self.getTurnNumber() - lastRepositionTurn <
+    //   REPOSITION_TURNS_ALLOTTED
+    // ) {
+    //   return;
+    // }
 
     const enemy = targetedEnemy({
       enemies: context.enemies,
@@ -42,7 +45,8 @@ export const createRotationPlanner: () => InputPlanner = () => {
       return;
     }
 
-    let idealStrafeAngle = context.self.bearingTo(enemy.x, enemy.y) + 90;
+    let idealStrafeAngle =
+      -(90 - context.self.bearingTo(enemy.x, enemy.y)) * ANGLE_FACTOR;
 
     rawResult = {
       value: idealStrafeAngle,
@@ -64,12 +68,21 @@ export const createRotationPlanner: () => InputPlanner = () => {
       }
     }
 
-    return rawResult;
+    const clampedValue = clamp(rawResult.value, -MAX_ROT_ANGLE, MAX_ROT_ANGLE);
+
+    return {
+      ...rawResult,
+      value: clampedValue,
+    };
   };
 };
 
 function degToRad(degrees: number) {
   return (degrees * Math.PI) / 180;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
 }
 
 function projectedPosition(botPos: Vector, angle: number, distance: number) {

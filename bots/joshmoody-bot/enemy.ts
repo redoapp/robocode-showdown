@@ -4,7 +4,11 @@ import { distance, inferredPosition, Vector } from "./geometry";
 export type Enemy = ScannedBotEvent[];
 export type Enemies = Map<number, Enemy>;
 
-export const ALIVENESS_THRESHOLD = 30;
+export const ALIVENESS_THRESHOLD = 40;
+const DISTANCE_EXP = 2;
+const DISTANCE_WEIGHT = 1;
+const ENERGY_EXP = 3;
+const ENERGY_WEIGHT = 0.05;
 
 export function createEnemiesProxy(rawEnemies: Enemies, self: Bot): Enemies {
   const isAlive = (history: Enemy) =>
@@ -47,6 +51,7 @@ export function targetedEnemy({
     const latest = history.at(-1)!;
     return {
       id: latest.scannedBotId,
+      energy: latest.energy,
       distance: distance(
         self,
         inferredPosition(history, futureTurns ?? 0) ?? latest,
@@ -58,6 +63,13 @@ export function targetedEnemy({
 
   if (!enemyDistances.length) return null;
   return enemyDistances.reduce((current, acc) =>
-    current.distance > acc.distance ? acc : current,
+    enemyScore(acc) < enemyScore(current) ? acc : current,
+  );
+}
+
+function enemyScore(enemy: { distance: number; energy: number }) {
+  return (
+    Math.pow(enemy.distance, DISTANCE_EXP) * DISTANCE_WEIGHT +
+    Math.pow(enemy.energy, ENERGY_EXP) * ENERGY_WEIGHT
   );
 }

@@ -1,4 +1,9 @@
-import { Bot, ScannedBotEvent } from "@robocode.dev/tank-royale-bot-api";
+import {
+  Bot,
+  Color,
+  HitByBulletEvent,
+  ScannedBotEvent,
+} from "@robocode.dev/tank-royale-bot-api";
 import { Context, initContext } from "./context";
 import { dequeueInputs, enqueueInputs } from "./input";
 
@@ -17,6 +22,12 @@ class JoshmoodyBot extends Bot {
     this.setAdjustRadarForGunTurn(true);
     this.setAdjustRadarForBodyTurn(true);
     this.setAdjustGunForBodyTurn(true);
+    this.setBodyColor(Color.DARK_GREEN);
+    this.setTurretColor(Color.DARK_OLIVE_GREEN);
+    this.setGunColor(Color.YELLOW_GREEN);
+    this.setRadarColor(Color.MEDIUM_SEA_GREEN);
+    this.setBulletColor(Color.LIGHT_GOLDENROD_YELLOW);
+    this.setScanColor(Color.LIGHT_BLUE);
     const context = initContext(this);
     this.context = context;
     while (this.isRunning()) {
@@ -40,6 +51,10 @@ class JoshmoodyBot extends Bot {
       (e) => this.getTurnNumber() - e.turnNumber < ENEMY_HISTORY_MAX_AGE,
     );
     this.context?.enemies.set(e.scannedBotId, eventHistory);
+  }
+
+  override onHitByBullet(e: HitByBulletEvent) {
+    if (this.context) this.context.hitByBullet = true;
   }
 }
 

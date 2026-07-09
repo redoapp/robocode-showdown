@@ -12,6 +12,7 @@ export interface Context {
   inputQueues: Record<InputType, InputQueue>;
   inputPlanners: Record<InputType, InputPlanner>;
   graphics: IGraphics;
+  hitByBullet: boolean; // hacky global state
 }
 
 export function initContext(self: Bot): Context {
@@ -34,5 +35,6 @@ export function initContext(self: Bot): Context {
     inputQueues,
     inputPlanners,
     graphics,
+    hitByBullet: false,
   };
 }

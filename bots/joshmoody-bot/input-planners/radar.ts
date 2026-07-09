@@ -5,7 +5,7 @@ import { botVec } from "../geometry";
 import { InputPlanner } from "../input";
 
 const FULL_SCAN_RATE_TURNS = 150;
-const FUTURE_TURNS = 3;
+const FUTURE_TURNS = 5;
 const OVERSHOOT = 1.8;
 const MIN_ANGLE = 30;
 
@@ -46,7 +46,3 @@ export const createRadarPlanner: () => InputPlanner = () => {
     };
   };
 };
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
-}
