@@ -36,7 +36,7 @@ class MooseBot extends Bot {
   private orbitDirection = 1;
   private reversalClock = 0;
   private nextReversalAt = MooseBot.REVERSAL_MIN + Math.floor(MooseBot.REVERSAL_SPAN / 2);
-  private randomState = 2685821657736460667;
+  private randomState = 2685821657736378312;
 
   static main() {
     new MooseBot().start();
@@ -85,6 +85,10 @@ class MooseBot extends Bot {
       heading -= (MooseBot.MELEE_SPECIALIST ? 18 : 30 + 10 * MooseBot.AGGRESSION) * this.orbitDirection;
     } else if (distance < preferred - 70) {
       heading += (MooseBot.MELEE_SPECIALIST ? 48 : 38 + 12 / Math.max(0.7, MooseBot.AGGRESSION)) * this.orbitDirection;
+    }
+
+    if (MooseBot.AIM_MODE === 7 && distance < 220) {
+      heading += 26 * this.orbitDirection;
     }
 
     if (MooseBot.MELEE_SPECIALIST && this.getEnemyCount() > 2) {
@@ -175,6 +179,9 @@ class MooseBot extends Bot {
         direction += lateralSign * (5.5 + 4 * distanceFactor) + turnRate * 0.55;
       } else if (MooseBot.AIM_MODE === 6) {
         direction += turnRate * 0.85 + this.orbitDirection * (MooseBot.MELEE_SPECIALIST ? 1.3 : 2.8);
+      } else if (MooseBot.AIM_MODE === 7) {
+        const nearWall = !this.inside(predictedX, predictedY, MooseBot.WALL_MARGIN + 28);
+        direction += nearWall ? turnRate * 0.15 : 1.2 * this.orbitDirection + turnRate * 0.35;
       }
 
       predictedX += Math.sin(this.toRadians(direction)) * this.targetSpeed;
@@ -267,8 +274,10 @@ class MooseBot extends Bot {
     let accept: boolean;
     if (this.targetId < 0 || scannedId === this.targetId) {
       accept = true;
-    } else if (MooseBot.MELEE_SPECIALIST && this.getEnemyCount() > 1) {
-      accept = distance + e.energy * 2.2 < (currentDistance + this.targetEnergy * 2.2) * 0.88 || distance < 190;
+    } else if (this.getEnemyCount() > 1) {
+      const score = distance + e.energy * 4.8 + (e.energy < 10 ? -140 : 0) + (distance < 190 ? -95 : 0);
+      const currentScore = currentDistance + this.targetEnergy * 4.8 + (this.targetEnergy < 10 ? -140 : 0) + (currentDistance < 190 ? -95 : 0);
+      accept = score < currentScore * 0.9 || (e.energy < 7 && distance < 560);
     } else {
       accept = distance < currentDistance * 0.78 || e.energy < this.targetEnergy - 8;
     }
