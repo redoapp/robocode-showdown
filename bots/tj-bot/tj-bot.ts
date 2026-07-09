@@ -28,6 +28,8 @@ interface Snapshot {
 interface Wave {
   ox: number;
   oy: number;
+  tx: number; // where we were when they fired — a head-on shot is aimed here
+  ty: number;
   speed: number;
   fireTurn: number;
   reacted: boolean;
@@ -118,6 +120,8 @@ class TjBot extends Bot {
         this.waves.push({
           ox: prev.x,
           oy: prev.y,
+          tx: this.getX(),
+          ty: this.getY(),
           speed: 20 - 3 * drop,
           fireTurn: prev.turn,
           reacted: false,
@@ -210,15 +214,28 @@ class TjBot extends Bot {
       const traveled = (turn - w.fireTurn) * w.speed;
       const dToUs = Math.hypot(this.getX() - w.ox, this.getY() - w.oy);
       if (!w.reacted && traveled > dToUs * 0.45) {
-        // Bullet is halfway here — a direction change NOW is what makes it miss.
+        // Steer AWAY from the aim ray (origin -> where we were at fire time):
+        // orbitDir = +1 decreases our angle around the origin, -1 increases it.
         w.reacted = true;
-        if (Math.random() < 0.6 && this.wallFlipCooldown === 0) {
-          this.orbitDir = this.orbitDir === 1 ? -1 : 1;
+        const aimDir = Math.atan2(w.ty - w.oy, w.tx - w.ox) / DEG;
+        const nowDir = Math.atan2(this.getY() - w.oy, this.getX() - w.ox) / DEG;
+        const delta = this.normalizeRelativeAngle(nowDir - aimDir);
+        if (this.wallFlipCooldown === 0) {
+          if (Math.abs(delta) < 1) {
+            this.orbitDir = Math.random() < 0.5 ? 1 : -1;
+          } else {
+            this.orbitDir = delta > 0 ? -1 : 1;
+          }
         }
-        this.setMaxSpeed(5 + Math.random() * 3);
+        this.setMaxSpeed(6 + Math.random() * 2);
       }
     }
-    if (Math.random() < 0.04 && this.wallFlipCooldown === 0) {
+    // Random jitter only between volleys — never while a bullet is in flight.
+    if (
+      this.waves.length === 0 &&
+      Math.random() < 0.04 &&
+      this.wallFlipCooldown === 0
+    ) {
       this.orbitDir = this.orbitDir === 1 ? -1 : 1;
     }
 
@@ -337,7 +354,7 @@ class TjBot extends Bot {
   private choosePower(dist: number): number {
     const energy = this.getEnergy();
     if (energy < 1) return 0;
-    let power = dist < 150 ? 3 : dist < 400 ? 2.2 : 1.6;
+    let power = dist < 150 ? 3 : dist < 400 ? 1.9 : 1.2;
     if (energy < 15) power = Math.min(power, 1);
     if (energy < 5) power = Math.min(power, 0.5);
     return Math.min(power, Math.max(0.1, energy - 0.5));
