@@ -13,8 +13,8 @@ const WALL_MARGIN = 55;
 const MOVE_PROJECTION = 140;
 const GUN_BINS = 31;
 const GUN_MIDDLE = (GUN_BINS - 1) / 2;
-const DISTANCE_SEGMENTS = 5;
-const VELOCITY_SEGMENTS = 5;
+const DISTANCE_SEGMENTS = 3;
+const LATERAL_SEGMENTS = 3;
 const LEARNING_FIREPOWER = 1.9;
 const GUN_ROLLING_WINDOW = 32;
 const SURF_BINS = 47;
@@ -62,8 +62,8 @@ const directionTo = (fromX: number, fromY: number, toX: number, toY: number) =>
 
 const newGunStats = (): GunBuffer[][][][] =>
   Array.from({ length: DISTANCE_SEGMENTS }, () =>
-    Array.from({ length: VELOCITY_SEGMENTS }, () =>
-      Array.from({ length: VELOCITY_SEGMENTS }, () =>
+    Array.from({ length: LATERAL_SEGMENTS }, () =>
+      Array.from({ length: LATERAL_SEGMENTS }, () =>
         Array.from({ length: GUN_BINS }, () => 0),
       ),
     ),
@@ -83,7 +83,7 @@ class DangrundBot extends Bot {
   private hits = 0;
   private hitsTaken = 0;
   private lastShotTurn = 0;
-  private lastEnemySpeed = 0;
+  private lastEnemyLateralSpeed = 0;
   private lateralDirection = 1;
   private gunStats = newGunStats();
   private gunWaves: GunWave[] = [];
@@ -175,7 +175,7 @@ class DangrundBot extends Bot {
     this.previousEnemyDirection = undefined;
     this.enemyTurnRate = 0;
     this.lastShotTurn = 0;
-    this.lastEnemySpeed = 0;
+    this.lastEnemyLateralSpeed = 0;
     this.lateralDirection = 1;
     this.gunWaves = [];
     this.nextDirectionChange = 35 + Math.floor(Math.random() * 45);
@@ -484,7 +484,12 @@ class DangrundBot extends Bot {
       if (Math.abs(lateralSpeed) > 0.1) {
         this.lateralDirection = lateralSpeed < 0 ? -1 : 1;
       }
-      gunBuffer = this.gunBuffer(distance, event.speed, this.lastEnemySpeed);
+      gunBuffer = this.gunBuffer(
+        distance,
+        lateralSpeed,
+        this.lastEnemyLateralSpeed,
+      );
+      this.lastEnemyLateralSpeed = lateralSpeed;
       const bulletSpeed = 20 - 3 * power;
       const maxEscapeAngle = toDegrees(Math.asin(8 / bulletSpeed));
       aimDirection +=
@@ -511,7 +516,6 @@ class DangrundBot extends Bot {
       aimDirection = directionTo(this.getX(), this.getY(), aimX, aimY);
     }
 
-    this.lastEnemySpeed = event.speed;
     const gunBearing = normalizeBearing(aimDirection - this.getGunDirection());
     this.setTurnGunLeft(gunBearing);
     const shouldFire = stopAndGoTarget
@@ -603,20 +607,24 @@ class DangrundBot extends Bot {
     this.gunWaves = active;
   }
 
-  private gunBuffer(distance: number, speed: number, lastSpeed: number) {
+  private gunBuffer(
+    distance: number,
+    lateralSpeed: number,
+    lastLateralSpeed: number,
+  ) {
     const distanceIndex = Math.min(
       DISTANCE_SEGMENTS - 1,
       Math.floor(distance / (900 / DISTANCE_SEGMENTS)),
     );
-    const speedIndex = Math.min(
-      VELOCITY_SEGMENTS - 1,
-      Math.floor(Math.abs(speed) / 2),
-    );
-    const lastSpeedIndex = Math.min(
-      VELOCITY_SEGMENTS - 1,
-      Math.floor(Math.abs(lastSpeed) / 2),
-    );
-    return this.gunStats[distanceIndex][speedIndex][lastSpeedIndex];
+    const lateralIndex =
+      Math.abs(lateralSpeed) < 1 ? 0 : Math.abs(lateralSpeed) < 5 ? 1 : 2;
+    const lastLateralIndex =
+      Math.abs(lastLateralSpeed) < 1
+        ? 0
+        : Math.abs(lastLateralSpeed) < 5
+          ? 1
+          : 2;
+    return this.gunStats[distanceIndex][lateralIndex][lastLateralIndex];
   }
 
   private bestGuessFactor(buffer: GunBuffer) {
