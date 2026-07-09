@@ -131,7 +131,28 @@ npm run tournament -- report <id> <winner>   Record a result (winner name, or "d
 npm run tournament -- knockout               Seed the bracket after the group stage
 npm run tournament -- bracket                Show the knockout bracket
 npm run tournament -- reset                  Wipe all state and start over
+npm run bracket                              Live HTML bracket viewer (for the projector)
 ```
+
+## Live bracket on the big screen
+
+```bash
+npm run bracket
+```
+
+Opens a browser page (default `http://localhost:4600`) that visualizes
+`tournament-state.json` and refreshes itself every couple of seconds — leave it
+on the projector and it updates on its own as you `report` results:
+
+- **Group stage**: live standings per group; qualifiers get marked once a group
+  is complete.
+- **Knockout**: the bracket with the full path to the Final — future rounds are
+  drawn as dashed TBD cards, and bots whose next opponent isn't decided yet are
+  seeded forward as soon as their match is reported.
+- **Champion**: the winning path is highlighted all the way to the trophy. 🏆
+
+Flags: `--port 4600`, `--no-open` (don't auto-open a browser), `--state <path>`
+(view a different state file).
 
 ## Tips for running it live
 

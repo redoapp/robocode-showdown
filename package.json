@@ -10,7 +10,8 @@
     "new-bot": "node scripts/new-bot.mjs",
     "battle": "node scripts/battle.mjs",
     "gui": "node scripts/gui.mjs",
-    "tournament": "node scripts/tournament.mjs"
+    "tournament": "node scripts/tournament.mjs",
+    "bracket": "node scripts/bracket-view.mjs"
   },
   "engines": {
     "node": ">=22"
