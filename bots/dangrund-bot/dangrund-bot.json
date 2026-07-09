@@ -11,5 +11,6 @@
     "classic",
     "1v1",
     "melee"
-  ]
+  ],
+  "tournament": true
 }
