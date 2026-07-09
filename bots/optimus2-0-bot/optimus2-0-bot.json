@@ -1,0 +1,15 @@
+{
+  "name": "optimus2-0-bot",
+  "version": "1.0",
+  "authors": [
+    "Andrew Moss"
+  ],
+  "description": "Optimus2.0 - wave surfing + rolling GuessFactor gun, min-risk melee movement.",
+  "platform": "Node.js",
+  "programmingLang": "TypeScript",
+  "gameTypes": [
+    "classic",
+    "1v1",
+    "melee"
+  ]
+}
