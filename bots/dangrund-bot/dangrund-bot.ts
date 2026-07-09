@@ -74,6 +74,7 @@ class DangrundBot extends Bot {
   private enemyTurnRate = 0;
   private stationaryScans = 0;
   private movingScans = 0;
+  private turningScans = 0;
   private firedDuringStop = false;
   private lastStationaryShot = -100;
   private shots = 0;
@@ -116,6 +117,7 @@ class DangrundBot extends Bot {
       const observedTurnRate = normalizeBearing(
         event.direction - this.previousEnemyDirection,
       );
+      if (Math.abs(observedTurnRate) > 0.5) this.turningScans += 1;
       this.enemyTurnRate = this.enemyTurnRate * 0.7 + observedTurnRate * 0.3;
     }
     this.previousEnemyDirection = event.direction;
@@ -165,6 +167,7 @@ class DangrundBot extends Bot {
     this.hitsTaken = 0;
     this.stationaryScans = 0;
     this.movingScans = 0;
+    this.turningScans = 0;
     this.firedDuringStop = false;
     this.lastStationaryShot = -100;
     this.previousEnemyDirection = undefined;
@@ -622,7 +625,11 @@ class DangrundBot extends Bot {
 
   private isStopAndGoTarget() {
     const observations = this.observationCount();
-    return observations >= 20 && this.stationaryScans / observations > 0.2;
+    return (
+      observations >= 20 &&
+      this.stationaryScans / observations > 0.2 &&
+      this.turningScans / observations < 0.15
+    );
   }
 
   private observationCount() {
