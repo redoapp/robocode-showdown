@@ -1,0 +1,16 @@
+{
+  "name": "manny-bot",
+  "version": "1.0",
+  "authors": [
+    "Manuel Gordillo"
+  ],
+  "description": "Radar lock, muzzle-flash dodging, EMA-smoothed predictive aim.",
+  "platform": "Node.js",
+  "programmingLang": "TypeScript",
+  "gameTypes": [
+    "classic",
+    "1v1",
+    "melee"
+  ],
+  "tournament": true
+}
