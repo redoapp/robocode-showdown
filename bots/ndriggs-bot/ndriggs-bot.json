@@ -1,0 +1,11 @@
+{
+  "name": "ndriggs-bot",
+  "version": "1.0",
+  "authors": [
+    "Nathaniel Driggs"
+  ],
+  "description": "Deep RL (MuZero self-play via LightZero) policy network. RL is not dead.",
+  "platform": "Python",
+  "programmingLang": "Python 3",
+  "gameTypes": ["classic", "1v1", "melee"]
+}
