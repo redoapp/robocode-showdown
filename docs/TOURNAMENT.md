@@ -9,9 +9,18 @@ groups cut that to 4 battles, everyone still sees their bot fight on the big
 screen at least once, and a 4-tank brawl is a great spectacle.
 
 The `scripts/tournament.mjs` manager handles the draw, placements, and bracket.
-You run the actual battles in the Robocode GUI (best for the projector) and type
-the results back in. State is saved to `scripts/tournament-state.json`, so you can
-stop and resume any time.
+You run the actual battles in the Robocode GUI (best for the projector) and
+record the results back in. State is saved to `scripts/tournament-state.json`, so
+you can stop and resume any time.
+
+There are two interchangeable ways to drive it — mix and match, they share the
+same state file:
+
+- **Browser (recommended live):** `npm run bracket` serves a live page that both
+  visualizes and controls the whole tournament — draw, enter results, seed the
+  knockout, click winners, reset. See
+  [Live bracket on the big screen](#live-bracket-on-the-big-screen).
+- **CLI:** `npm run tournament -- <command>`, documented step by step below.
 
 ## Before the event
 
@@ -151,7 +160,7 @@ npm run tournament -- report <id> <winner>   Record a knockout result
 npm run tournament -- knockout               Seed the bracket after the group stage
 npm run tournament -- bracket                Show the knockout bracket
 npm run tournament -- reset                  Wipe all state and start over
-npm run bracket                              Live HTML bracket viewer (for the projector)
+npm run bracket                              Live bracket viewer + control panel
 ```
 
 ## Live bracket on the big screen
@@ -162,7 +171,7 @@ npm run bracket
 
 Opens a browser page (default `http://localhost:4600`) that visualizes
 `tournament-state.json` and refreshes itself every couple of seconds — leave it
-on the projector and it updates on its own as you `report` results:
+on the projector and it updates on its own as results come in:
 
 - **Group stage**: each group's melee placements; the top 2 get marked as
   qualifiers once the melee is reported.
@@ -171,14 +180,36 @@ on the projector and it updates on its own as you `report` results:
   seeded forward as soon as their match is reported.
 - **Champion**: the winning path is highlighted all the way to the trophy. 🏆
 
+The page is also a full **control panel** — every CLI command has a clickable
+equivalent, so you can run the entire event from the browser:
+
+- **Draw**: with no tournament yet, the page lists every bot in `bots/`
+  (opted-in bots pre-checked — tick a reference bot like `Hunter` to even out a
+  group) and a **Draw groups** button.
+- **Group results**: **Enter result** on a group card, then click the bots in
+  finishing order (winner first, top 2 is enough) and save. **Edit result**
+  re-reports it, latest report wins.
+- **Seed knockout**: once every melee is in, a **Seed knockout bracket** button
+  appears in the header.
+- **Knockout results**: click the winning bot in its match card, then confirm.
+  Only the latest round can be corrected — once a winner has been fed into the
+  next round, its match is locked.
+- **Reset**: header button, with an are-you-sure step.
+
+Changes made in the browser and via the CLI land in the same state file, so mix
+freely — the page picks up CLI reports within a couple of seconds and vice versa.
+
 Flags: `--port 4600`, `--no-open` (don't auto-open a browser), `--state <path>`
 (view a different state file).
 
 ## Tips for running it live
 
 - Put the GUI on the projector and narrate the battles — it's the fun part.
-- With 16 bots the whole event is ~11 battles: 4 group melees + 7 knockout
-  matches. 10–20 rounds per melee and ~10 per knockout match keeps it moving.
+- The format scales to however many bots show up: with 14–17 bots it's 4 group
+  melees + 7 knockout matches (~11 battles); 18–21 bots is 5 melees + 9
+  knockout matches; 22 bots is 6 melees + 11. Odd qualifier counts are handled
+  with automatic byes. 10–20 rounds per melee and ~10 per knockout match keeps
+  it moving.
 - Consider the **[Tank Royale Viewer](https://github.com/jandurovec/tank-royale-viewer)**
   for a slicker big-screen display.
 - `tournament-state.json` is your source of truth — back it up if you're paranoid.
