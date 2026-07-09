@@ -19,6 +19,7 @@ const LEARNING_FIREPOWER = 1.9;
 const GUN_ROLLING_WINDOW = 32;
 const SURF_BINS = 47;
 const SURF_MIDDLE = (SURF_BINS - 1) / 2;
+const SURF_ROLLING_WINDOW = 32;
 
 type GunBuffer = number[];
 
@@ -412,6 +413,7 @@ class DangrundBot extends Bot {
       event.bullet.y,
     );
     for (let i = 0; i < SURF_BINS; i += 1) {
+      this.surfStats[i] *= 1 - 1 / SURF_ROLLING_WINDOW;
       this.surfStats[i] += 1 / ((index - i) ** 2 + 1);
     }
     this.enemyWaves = this.enemyWaves.filter((wave) => wave !== hitWave);
