@@ -139,6 +139,7 @@ const json = JSON.stringify(
     platform: usePython ? "Python" : "Node.js",
     programmingLang: usePython ? "Python 3" : "TypeScript",
     gameTypes: ["classic", "1v1", "melee"],
+    tournament: true,
   },
   null,
   2
@@ -182,7 +183,7 @@ try {
 
 console.log(`Created bots/${name}/`);
 console.log(`  ${name}.${srcExt}    <- write your bot here`);
-console.log(`  ${name}.json  <- edit authors / description`);
+console.log(`  ${name}.json  <- edit authors / description ("tournament": true enters you in the tournament)`);
 console.log(`  ${name}.sh / ${name}.cmd  <- boot scripts (leave these alone)`);
 console.log("");
 console.log("Next:");

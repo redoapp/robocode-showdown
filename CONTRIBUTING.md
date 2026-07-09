@@ -31,6 +31,9 @@ organizer can pull them all at once.
   this for you — use it instead of copy-pasting; pass `--python` for a Python
   bot.)
 - ✅ **Fill in `authors`** in your `.json` so you get credit on the scoreboard.
+- ✅ **Keep `"tournament": true`** in your `.json` (set by `new-bot`) — it's what
+  enters your bot in the tournament draw. Testing something you *don't* want
+  drawn? Set it to `false`.
 - ✅ **Your bot must boot and run a battle** locally before you submit.
 - 🚫 **Don't commit `node_modules/` or `.venv/`** — they're gitignored; the
   organizer runs `npm run setup` (and `npm run setup:python`) once on the host.

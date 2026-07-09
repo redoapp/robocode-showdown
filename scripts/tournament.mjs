@@ -15,8 +15,13 @@
  * `git pull` and change their bot's CODE between rounds without breaking the
  * bracket — the identities stay the same.
  *
+ * Bots enter the draw by opting in: `"tournament": true` in their
+ * bots/<name>/<name>.json (`new-bot` sets it for you). Reference bots without
+ * the flag stay out unless pulled in with --include or --all.
+ *
  * Commands (run from repo root):
- *   npm run tournament -- draw [--exclude A,B]  Draw groups & group fixtures
+ *   npm run tournament -- draw [--all] [--include A,B] [--exclude A,B]
+ *                                               Draw groups & group fixtures
  *   npm run tournament -- status                Full overview (default)
  *   npm run tournament -- next                  Show the next matches to run
  *   npm run tournament -- report <matchId> <winner|draw>   Record a result
@@ -61,6 +66,15 @@ function scanBots() {
       }
     })
     .sort();
+}
+
+// A bot opts in to the tournament with `"tournament": true` in its <name>.json.
+function optedIn(name) {
+  try {
+    return JSON.parse(readFileSync(join(BOTS_DIR, name, `${name}.json`), "utf8")).tournament === true;
+  } catch {
+    return false;
+  }
 }
 
 function shuffle(arr) {
@@ -117,15 +131,31 @@ function cmdDraw(args) {
     console.error("A tournament already exists. Run `reset` first if you really want to redraw.");
     process.exit(1);
   }
-  const exclude = new Set();
-  const exIdx = args.indexOf("--exclude");
-  if (exIdx !== -1 && args[exIdx + 1]) {
-    args[exIdx + 1].split(",").forEach((x) => exclude.add(x.trim()));
-  }
+  const listArg = (flag) => {
+    const idx = args.indexOf(flag);
+    const set = new Set();
+    if (idx !== -1 && args[idx + 1]) args[idx + 1].split(",").forEach((x) => set.add(x.trim()));
+    return set;
+  };
+  const exclude = listArg("--exclude");
+  const include = listArg("--include");
+  const all = args.includes("--all");
 
-  let bots = scanBots().filter((b) => !exclude.has(b));
+  const onDisk = scanBots().filter((b) => !exclude.has(b));
+  const missingIncludes = [...include].filter((b) => !onDisk.includes(b));
+  if (missingIncludes.length) {
+    console.error(`--include names not found in bots/: ${missingIncludes.join(", ")}`);
+    process.exit(1);
+  }
+  const bots = onDisk.filter((b) => all || include.has(b) || optedIn(b));
+  const optedOut = onDisk.filter((b) => !bots.includes(b));
+
   if (bots.length < 2) {
-    console.error(`Need at least 2 bots to run a tournament. Found ${bots.length} in bots/.`);
+    console.error(`Need at least 2 opted-in bots to run a tournament. Found ${bots.length}.`);
+    if (optedOut.length) {
+      console.error(`Not opted in: ${optedOut.join(", ")}`);
+      console.error(`Opt a bot in with "tournament": true in its <name>.json, or draw with --include/--all.`);
+    }
     if (exclude.size) console.error(`(excluded: ${[...exclude].join(", ")})`);
     process.exit(1);
   }
@@ -142,6 +172,9 @@ function cmdDraw(args) {
 
   console.log(`Drew ${bots.length} bots into ${groups.length} group(s):\n`);
   renderGroups(state);
+  if (optedOut.length) {
+    console.log(`\nSkipped (not opted in): ${optedOut.join(", ")}`);
+  }
   console.log("\nGroup fixtures created. Run matches in the GUI, then:");
   console.log("  npm run tournament -- report <matchId> <winner>");
   console.log("  npm run tournament -- status");
@@ -459,7 +492,10 @@ function noTournament() {
 function help() {
   console.log(`Robocode Showdown — tournament manager
 
-  draw [--exclude A,B]     Draw groups of ~4 and generate round-robin fixtures
+  draw [--all] [--include A,B] [--exclude A,B]
+                           Draw groups of ~4 and generate round-robin fixtures
+                           (only bots with "tournament": true in their .json;
+                           --include pulls in named bots, --all takes everyone)
   status                   Standings + bracket + pending matches (default)
   next                     List the matches still to play
   report <id> <winner>     Record a result (winner = bot name, or "draw" in groups)
@@ -468,7 +504,8 @@ function help() {
   reset                    Delete all tournament state
 
 Bots are identified by folder name, so people can change their bot's code and
-git pull between rounds without breaking the bracket.`);
+git pull between rounds without breaking the bracket. A bot enters the draw by
+opting in: "tournament": true in bots/<name>/<name>.json (new-bot sets this).`);
 }
 
 // ---------------------------------------------------------------------------

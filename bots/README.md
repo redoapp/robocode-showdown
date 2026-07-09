@@ -31,7 +31,7 @@ by that name — a mismatch means it won't load.
 | File             | Purpose                                                                    |
 | ---------------- | -------------------------------------------------------------------------- |
 | `aburns-bot.ts` / `.py` | Your bot's brain.                                                     |
-| `aburns-bot.json`  | Metadata: `name`, `version`, `authors` (required). Displayed in the GUI.   |
+| `aburns-bot.json`  | Metadata: `name`, `version`, `authors` (required). Displayed in the GUI. `"tournament": true` opts your bot in to the tournament draw. |
 | `aburns-bot.sh`    | Boot script for macOS/Linux. Don't edit beyond the filename.               |
 | `aburns-bot.cmd`   | Boot script for Windows. Don't edit beyond the filename.                   |
 
@@ -43,4 +43,6 @@ by that name — a mismatch means it won't load.
   sparring partner and a good source of ideas. Test your bot against it.
 
 Please leave `SampleBot`, `SamplePyBot`, and `Hunter` in place — they're used as
-fill-ins if a group needs an even number of bots.
+fill-ins if a group needs an even number of bots. They don't opt in to the
+tournament (`"tournament"` isn't set in their `.json`), so they only join a draw
+when the organizer pulls them in with `--include` or `--all`.

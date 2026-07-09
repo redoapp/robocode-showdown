@@ -43,10 +43,15 @@ Sanity-check that every bot boots in the GUI before you draw.
 npm run tournament -- draw
 ```
 
+- Only bots that **opted in** join the draw: `"tournament": true` in their
+  `bots/<name>/<name>.json`. `new-bot` sets it automatically, so submitted bots
+  are in by default; the reference bots (`SampleBot`, `SamplePyBot`, `Hunter`)
+  aren't flagged and stay out. The draw prints who was skipped.
 - Bots are auto-split into balanced groups of ~4 and round-robin fixtures are
   generated (`A1`, `A2`, … per group).
-- Want to keep the sample bots out? `npm run tournament -- draw --exclude SampleBot,Hunter`
-  (they're handy as fill-ins if you need an even number, so it's your call).
+- Need a fill-in to even out a group? `npm run tournament -- draw --include Hunter`
+  pulls in a bot that hasn't opted in. `--all` takes every bot regardless of the
+  flag, and `--exclude A,B` drops bots even if they opted in.
 - Drew it wrong? `npm run tournament -- reset` and draw again.
 
 Show the draw on the big screen:
@@ -124,7 +129,8 @@ all the way to the **Final**. When you report the final, it prints the champion.
 ## Command reference
 
 ```
-npm run tournament -- draw [--exclude A,B]   Draw groups & fixtures
+npm run tournament -- draw [--all] [--include A,B] [--exclude A,B]
+                                             Draw groups & fixtures (opted-in bots)
 npm run tournament -- status                 Standings + bracket + pending (default)
 npm run tournament -- next                   Just the matches left to play
 npm run tournament -- report <id> <winner>   Record a result (winner name, or "draw")

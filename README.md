@@ -85,6 +85,8 @@ Open a PR titled `Add bot: aburns-bot`. Full rules: **[CONTRIBUTING.md](CONTRIBU
 ## Tournament — World Cup format
 
 Groups of ~4 → round-robin → top 2 advance → single-elimination knockout.
+Bots enter by opting in — `"tournament": true` in your bot's `.json`, already
+set by `new-bot` — so the reference bots stay out of the draw automatically.
 The organizer runs battles in the GUI and records results:
 
 ```bash
