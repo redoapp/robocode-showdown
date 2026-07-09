@@ -54,6 +54,19 @@ export function botVec(bot: Bot): Vector {
   };
 }
 
+const clamp = (val: number, min: number, max: number) =>
+  Math.min(Math.max(val, min), max);
+
+export function clampV(vec: Vector, min: number, max: number) {
+  return {
+    x: clamp(vec.x, min, max),
+    y: clamp(vec.y, min, max),
+  };
+}
+
+const ACCEL_TURN_LIMIT = 20;
+const ACCEL_LIMIT = 0.5;
+
 export function inferredPosition(
   enemy: Enemy,
   futureTurns: number,
@@ -78,19 +91,26 @@ export function inferredPosition(
   if (!c) {
     return inferredFromVelocityAlone;
   }
-  return inferredFromVelocityAlone;
-  // const deltaTimeBC = b.turnNumber - c.turnNumber;
-  // if (deltaTimeBC > MAX_USABLE_DELTA_TIME) {
-  //   return inferredFromVelocityAlone;
-  // }
-  // const velocityBC = derivative(c, b, deltaTimeBC);
-  // const accelerationAB = derivative(velocityBC, velocityAB, deltaTimeAB);
-  // const futureTurnsSquared = futureTurns * futureTurns;
-  // return addV(
-  //   inferredFromVelocityAlone,
-  //   multiplyV(multiplyV({ x: 0.5, y: 0.5 }, accelerationAB), {
-  //     x: futureTurnsSquared,
-  //     y: futureTurnsSquared,
-  //   }),
-  // );
+  const deltaTimeBC = b.turnNumber - c.turnNumber;
+  if (deltaTimeBC > MAX_USABLE_DELTA_TIME) {
+    return inferredFromVelocityAlone;
+  }
+  const velocityBC = derivative(c, b, deltaTimeBC);
+  const accelerationAB = clampV(
+    derivative(velocityBC, velocityAB, deltaTimeAB),
+    -ACCEL_LIMIT,
+    ACCEL_LIMIT,
+  );
+  const futureTurnsSquared = clamp(
+    futureTurns * futureTurns,
+    0,
+    ACCEL_TURN_LIMIT,
+  );
+  return addV(
+    inferredFromVelocityAlone,
+    multiplyV(multiplyV({ x: 0.5, y: 0.5 }, accelerationAB), {
+      x: futureTurnsSquared,
+      y: futureTurnsSquared,
+    }),
+  );
 }
