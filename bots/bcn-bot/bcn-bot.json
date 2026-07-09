@@ -1,0 +1,15 @@
+{
+  "name": "bcn-bot",
+  "version": "1.0",
+  "authors": [
+    "Bradley Nelson"
+  ],
+  "description": "GuessFactor KNN targeting with wave-surfing movement and win-probability bullet power.",
+  "platform": "Node.js",
+  "programmingLang": "TypeScript",
+  "gameTypes": [
+    "classic",
+    "1v1",
+    "melee"
+  ]
+}
