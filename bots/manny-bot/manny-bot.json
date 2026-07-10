@@ -4,7 +4,7 @@
   "authors": [
     "Manuel Gordillo"
   ],
-  "description": "Radar lock, muzzle-flash dodging, EMA-smoothed predictive aim.",
+  "description": "Wave surfing + rolling GuessFactor gun. Surf's up.",
   "platform": "Node.js",
   "programmingLang": "TypeScript",
   "gameTypes": [
