@@ -18,9 +18,9 @@ class LandenBot extends Bot {
     this.moveDirection = 1;
 
     while (this.isRunning()) {
-      this.forward(96);
+      this.forward(98);
       this.turnGunLeft(360);
-      this.back(104);
+      this.back(102);
       this.turnGunLeft(360);
     }
   }
@@ -32,14 +32,13 @@ class LandenBot extends Bot {
   override onHitByBullet(e: HitByBulletEvent) {
     this.moveDirection *= -1;
     const bearing = this.calcBearing(e.bullet.direction);
-    this.turnRight(70 - bearing);
-    this.forward(120 * this.moveDirection);
+    this.turnRight(80 - bearing);
   }
 
   override onHitWall(e: HitWallEvent) {
     this.moveDirection *= -1;
-    this.back(90);
-    this.turnRight(55);
+    this.back(75);
+    this.turnRight(45);
   }
 }
 
