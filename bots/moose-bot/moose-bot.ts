@@ -1,261 +1,390 @@
 import {
   Bot,
   BotDeathEvent,
-  BulletFiredEvent,
-  BulletHitBotEvent,
-  BulletHitBulletEvent,
-  DeathEvent,
-  GameEndedEvent,
+  HitBotEvent,
   HitByBulletEvent,
   HitWallEvent,
-  RoundEndedEvent,
   ScannedBotEvent,
 } from "@robocode.dev/tank-royale-bot-api";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { CombatState, SelfState } from "../alee-bot/src/combat-state.js";
-import { GunSystem } from "../alee-bot/src/gun-system.js";
-import type { GunPlan } from "../alee-bot/src/gun-system.js";
-import { GUESS_FACTOR_BINS, LearningSystem } from "../alee-bot/src/learning-system.js";
-import { MovementSystem } from "../alee-bot/src/movement-system.js";
-import { TargetRadarSystem } from "../alee-bot/src/target-radar-system.js";
-import { TacticalPolicy } from "../alee-bot/src/tactical-policy.js";
-import { TelemetryCollector } from "../alee-bot/src/telemetry.js";
 
-const BOT_DIRECTORY = dirname(fileURLToPath(import.meta.url));
-const TRAINING_DIRECTORY = join(BOT_DIRECTORY, "training");
-
-type MutableRoundDiagnostics = {
-  scans: number;
-  gunCoolScans: number;
-  gunAlignedScans: number;
-  gunBearingAbsoluteSum: number;
-  fireRequestsAccepted: number;
-  bulletsFired: number;
-  bulletHits: number;
-  bulletDamage: number;
-  enemyBulletHits: number;
-  enemyBulletDamage: number;
-  inferredEnemyWaves: number;
-  matchedEnemyWaves: number;
-  resolvedRealWaves: number;
-  resolvedVirtualWaves: number;
-  movementModes: Record<string, number>;
-  selectedGuns: Record<string, number>;
-};
-
-const emptyDiagnostics = (): MutableRoundDiagnostics => ({
-  scans: 0,
-  gunCoolScans: 0,
-  gunAlignedScans: 0,
-  gunBearingAbsoluteSum: 0,
-  fireRequestsAccepted: 0,
-  bulletsFired: 0,
-  bulletHits: 0,
-  bulletDamage: 0,
-  enemyBulletHits: 0,
-  enemyBulletDamage: 0,
-  inferredEnemyWaves: 0,
-  matchedEnemyWaves: 0,
-  resolvedRealWaves: 0,
-  resolvedVirtualWaves: 0,
-  movementModes: {},
-  selectedGuns: {},
-});
-
-function increment(counts: Record<string, number>, key: string) {
-  counts[key] = (counts[key] ?? 0) + 1;
-}
+type Point = { x: number; y: number };
+type EnemyInfo = Point & { id: number; energy: number; direction: number; speed: number; turnRate: number; seen: number };
 
 class MooseBot extends Bot {
-  private readonly combat = new CombatState();
-  private readonly learning = new LearningSystem();
-  private readonly gun = new GunSystem(this.learning);
-  private readonly movement = new MovementSystem();
-  private readonly targetRadar = new TargetRadarSystem();
-  private readonly tacticalPolicy = new TacticalPolicy();
-  private readonly telemetry = new TelemetryCollector(TRAINING_DIRECTORY, process.env.GUESS_FACTOR_COLLECT === "1");
-  private diagnostics = emptyDiagnostics();
-  private pendingShot: GunPlan | undefined;
+  private static readonly MELEE_SPECIALIST = false;
+  private static readonly WALL_MARGIN = 72;
+  private static readonly BOT_MARGIN = 18;
+  private static readonly TARGET_STALE_TURNS: number = 13;
+  private static readonly PREFERRED_DISTANCE: number = 298;
+  private static readonly MELEE_DISTANCE: number = 430;
+  private static readonly CLOSE_RANGE: number = 100;
+  private static readonly LONG_RANGE: number = 730;
+  private static readonly REVERSAL_MIN: number = 12;
+  private static readonly REVERSAL_SPAN: number = 34;
+  private static readonly AIM_MODE: number = 3;
+  private static readonly AGGRESSION: number = 1.26;
+  private static readonly RAM_RANGE: number = 108;
+
+  private targetId = -1;
+  private targetX = 0;
+  private targetY = 0;
+  private targetDirection = 0;
+  private targetSpeed = 0;
+  private targetEnergy = 100;
+  private targetTurnRate = 0;
+  private targetAge = 999;
+  private targetSeenAt = -1;
+  private orbitDirection = 1;
+  private reversalClock = 0;
+  private nextReversalAt = MooseBot.REVERSAL_MIN + Math.floor(MooseBot.REVERSAL_SPAN / 2);
+  private randomState = 2685821657736378312;
+  private enemies = new Map<number, EnemyInfo>();
+  private meleeDestination: Point = { x: 400, y: 300 };
+  private meleePlanTurn = -100;
 
   static main() {
     new MooseBot().start();
   }
 
   override run() {
-    this.combat.resetRound(this.getRoundNumber());
-    this.movement.resetRound();
-    this.targetRadar.resetRound();
-    this.tacticalPolicy.resetRound();
-    this.diagnostics = emptyDiagnostics();
-    this.pendingShot = undefined;
-    try {
-      this.learning.loadChampion(BOT_DIRECTORY);
-    } catch (error) {
-      console.error(`MooseBot: champion rejected; using statistical fallback. ${String(error)}`);
-    }
-    try {
-      this.tacticalPolicy.load();
-    } catch (error) {
-      console.error(`MooseBot: tactical policy rejected; using deterministic default. ${String(error)}`);
-    }
-
+    this.setAdjustGunForBodyTurn(true);
     this.setAdjustRadarForBodyTurn(true);
     this.setAdjustRadarForGunTurn(true);
-    this.setAdjustGunForBodyTurn(true);
-    this.setMaxSpeed(8);
+    this.setFireAssist(false);
 
-    while (this.isRunning()) this.turnRadarRight(360);
-  }
-
-  override onScannedBot(event: ScannedBotEvent) {
-    this.diagnostics.scans += 1;
-    const self = this.selfState(event.turnNumber);
-    const update = this.combat.observeScan({
-      turnNumber: event.turnNumber,
-      scannedBotId: event.scannedBotId,
-      energy: event.energy,
-      x: event.x,
-      y: event.y,
-      direction: event.direction,
-      speed: event.speed,
-    }, GUESS_FACTOR_BINS, self);
-    this.diagnostics.inferredEnemyWaves += update.inferredEnemyWaves.length;
-    for (const wave of update.inferredEnemyWaves) this.movement.observeEnemyFire(wave);
-
-    for (const outcome of update.resolvedWaves) {
-      this.gun.observeOutcome(outcome);
-      if (outcome.wave.kind === "real") this.diagnostics.resolvedRealWaves += 1;
-      else this.diagnostics.resolvedVirtualWaves += 1;
-      if (outcome.wave.collectForTraining) this.telemetry.record(self.roundNumber, outcome);
-    }
-
-    const targetId = this.targetRadar.selectTarget(this.combat, self);
-    this.setTurnRadarLeft(this.targetRadar.radarTurn(self, update.opponent));
-    if (targetId !== update.opponent.id) return;
-
-    const tactic = this.tacticalPolicy.decide(self, update.opponent);
-    const gunPlan = this.gun.plan(this.combat, self, update.opponent, tactic.powerBias);
-    increment(this.diagnostics.selectedGuns, gunPlan.selectedGun);
-    this.diagnostics.gunBearingAbsoluteSum += Math.abs(gunPlan.gunBearing);
-    if (this.getGunHeat() === 0) this.diagnostics.gunCoolScans += 1;
-    if (Math.abs(gunPlan.gunBearing) < 7) this.diagnostics.gunAlignedScans += 1;
-    this.setTurnGunLeft(gunPlan.gunBearing);
-    // A virtual wave on every target scan provides dense, correctly framed data.
-    for (const wave of this.gun.virtualWaveInputs(gunPlan, self)) this.combat.createFriendlyWave(wave);
-    if (this.gun.shouldFire(self, gunPlan, this.getGunHeat()) && this.setFire(gunPlan.bulletPower)) {
-      this.pendingShot = gunPlan;
-      this.diagnostics.fireRequestsAccepted += 1;
-    }
-
-    const movementPlan = this.movement.plan(self, update.opponent, this.combat, tactic);
-    increment(this.diagnostics.movementModes, movementPlan.mode);
-    this.setTurnLeft(movementPlan.turnLeft);
-    this.setForward(movementPlan.forward);
-  }
-
-  override onBulletFired(event: BulletFiredEvent) {
-    this.diagnostics.bulletsFired += 1;
-    const plan = this.pendingShot;
-    this.pendingShot = undefined;
-    if (!plan) return;
-    const opponent = this.combat.getOpponent(plan.opponentId);
-    if (!opponent) return;
-    const self = this.selfState(event.turnNumber);
-    this.combat.createFriendlyWave(this.gun.actualWaveInput(plan, self, opponent, {
-      turnNumber: event.turnNumber,
-      x: event.bullet.x,
-      y: event.bullet.y,
-      direction: event.bullet.direction,
-      power: event.bullet.power,
-    }));
-  }
-
-  override onHitByBullet(event: HitByBulletEvent) {
-    const resolved = this.combat.resolveEnemyBullet(
-      event.turnNumber,
-      event.bullet.ownerId,
-      event.bullet.power,
-      { x: event.bullet.x, y: event.bullet.y },
-    );
-    this.diagnostics.enemyBulletHits += 1;
-    this.diagnostics.enemyBulletDamage += event.damage;
-    if (resolved) {
-      this.diagnostics.matchedEnemyWaves += 1;
-      this.movement.observeEnemyWaveHit(resolved);
-    }
-    this.movement.onHitByBullet();
-  }
-
-  override onBulletHitBullet(event: BulletHitBulletEvent) {
-    const enemyBullet = event.bullet.ownerId === this.getMyId() ? event.hitBullet : event.bullet;
-    if (enemyBullet.ownerId === this.getMyId()) return;
-    const resolved = this.combat.resolveEnemyBullet(
-      event.turnNumber,
-      enemyBullet.ownerId,
-      enemyBullet.power,
-      { x: enemyBullet.x, y: enemyBullet.y },
-    );
-    if (resolved) {
-      this.diagnostics.matchedEnemyWaves += 1;
-      this.movement.observeEnemyWaveHit(resolved, 0.5);
+    while (this.isRunning()) {
+      this.targetAge++;
+      if (this.targetAge > MooseBot.TARGET_STALE_TURNS) {
+        this.targetId = -1;
+      }
+      const hasTarget = this.targetId >= 0;
+      this.drive(hasTarget);
+      this.aim(hasTarget);
+      this.scan(hasTarget);
+      this.go();
     }
   }
 
-  override onBulletHitBot(event: BulletHitBotEvent) {
-    if (event.bullet.ownerId === this.getMyId()) {
-      this.diagnostics.bulletHits += 1;
-      this.diagnostics.bulletDamage += event.damage;
-      this.combat.recordKnownEnergyLoss(event.victimId, event.turnNumber, event.damage);
+  private drive(hasTarget: boolean) {
+    if (this.getEnemyCount() > 1) {
+      this.driveMeleeDestination();
+      return;
+    }
+
+    if (!hasTarget) {
+      this.setTargetSpeed(MooseBot.MELEE_SPECIALIST ? 8 : 7);
+      this.setTurnRate((MooseBot.MELEE_SPECIALIST ? 8 : 7) * this.orbitDirection);
+      return;
+    }
+
+    if (++this.reversalClock > this.nextReversalAt || this.shouldStopGoReverse()) {
+      this.reverseOrbit();
+    }
+
+    const distance = this.distanceTo(this.targetX, this.targetY);
+    const preferred = this.getEnemyCount() <= 1 ? MooseBot.PREFERRED_DISTANCE : MooseBot.MELEE_DISTANCE;
+    const enemyDirection = this.directionTo(this.targetX, this.targetY);
+    let heading = enemyDirection + 90 * this.orbitDirection;
+
+    if (MooseBot.AIM_MODE === 5 && this.getTurnNumber() % 23 === 0) {
+      heading += (this.nextRandom() % 2n === 0n ? 1 : -1) * 22;
+    }
+
+    if (distance > preferred + 75) {
+      heading -= (MooseBot.MELEE_SPECIALIST ? 18 : 30 + 10 * MooseBot.AGGRESSION) * this.orbitDirection;
+    } else if (distance < preferred - 70) {
+      heading += (MooseBot.MELEE_SPECIALIST ? 48 : 38 + 12 / Math.max(0.7, MooseBot.AGGRESSION)) * this.orbitDirection;
+    }
+
+    if (MooseBot.AIM_MODE === 7 && distance < 220) {
+      heading += 26 * this.orbitDirection;
+    }
+
+    if (MooseBot.MELEE_SPECIALIST && this.getEnemyCount() > 2) {
+      const centerBearing = this.directionTo(this.getArenaWidth() / 2, this.getArenaHeight() / 2);
+      heading = this.blendHeading(heading, this.normalizeAbsoluteAngle(centerBearing + 180), 0.24);
+    }
+
+    if (!MooseBot.MELEE_SPECIALIST && this.targetEnergy < 6 && distance < MooseBot.RAM_RANGE && this.getEnergy() > this.targetEnergy + 22) {
+      this.setTurnRate(this.normalizeRelativeAngle(enemyDirection - this.getDirection()));
+      this.setTargetSpeed(8);
+      return;
+    }
+
+    heading = this.wallSmoothed(heading);
+    const turn = this.normalizeRelativeAngle(heading - this.getDirection());
+    this.setTurnRate(turn);
+
+    let speed = 8;
+    if (MooseBot.AIM_MODE === 3 && Math.floor(this.getTurnNumber() / 9) % 3 === 0) {
+      speed = 0.8;
+    } else if (MooseBot.AIM_MODE === 5 && Math.floor(this.getTurnNumber() / 11) % 4 === 0) {
+      speed = 3.2;
+    }
+    this.setTargetSpeed(Math.abs(turn) > 76 ? Math.min(speed, 4.8) : speed);
+  }
+
+  private driveMeleeDestination() {
+    const enemies = [...this.enemies.values()].filter((enemy) => this.getTurnNumber() - enemy.seen <= 45);
+    if (enemies.length === 0) {
+      this.setTurnRate(8 * this.orbitDirection);
+      this.setTargetSpeed(8);
+      return;
+    }
+    if (this.getTurnNumber() - this.meleePlanTurn >= 10 || this.distanceTo(this.meleeDestination.x, this.meleeDestination.y) < 48) {
+      this.planMeleeDestination(enemies);
+      this.meleePlanTurn = this.getTurnNumber();
+    }
+    const heading = this.directionTo(this.meleeDestination.x, this.meleeDestination.y);
+    const turn = this.normalizeRelativeAngle(heading - this.getDirection());
+    this.setTurnRate(turn);
+    this.setTargetSpeed(Math.abs(turn) > 90 ? -8 : 8);
+  }
+
+  private planMeleeDestination(enemies: EnemyInfo[]) {
+    const margin = 72;
+    const base = Number(this.nextRandom() % 360n);
+    let bestRisk = Number.POSITIVE_INFINITY;
+    let best = this.meleeDestination;
+    for (let i = 0; i < 24; i++) {
+      const angle = base + i * 15;
+      const radius = 145 + Number(this.nextRandom() % 130n);
+      const x = this.clamp(this.getX() + Math.sin(this.toRadians(angle)) * radius, margin, this.getArenaWidth() - margin);
+      const y = this.clamp(this.getY() + Math.cos(this.toRadians(angle)) * radius, margin, this.getArenaHeight() - margin);
+      let risk = 0;
+      for (const enemy of enemies) {
+        const d2 = Math.max(900, (x - enemy.x) ** 2 + (y - enemy.y) ** 2);
+        risk += (enemy.energy + 80) / d2;
+        if (d2 < 170 ** 2) risk += (170 ** 2 - d2) / 180000;
+        if (enemy.energy < 10) risk -= 28 / d2;
+      }
+      const wallDistance = Math.min(x, y, this.getArenaWidth() - x, this.getArenaHeight() - y);
+      risk += 10 / Math.max(20, wallDistance) ** 2;
+      const centerD2 = (x - this.getArenaWidth() / 2) ** 2 + (y - this.getArenaHeight() / 2) ** 2;
+      risk += 14 / Math.max(10000, centerD2);
+      if (risk < bestRisk) {
+        bestRisk = risk;
+        best = { x, y };
+      }
+    }
+    this.meleeDestination = best;
+  }
+
+  private shouldStopGoReverse() {
+    if (MooseBot.MELEE_SPECIALIST) {
+      return this.getTurnNumber() % 33 === 0 && this.nextRandom() % 4n === 0n;
+    }
+    return MooseBot.AIM_MODE === 3 && this.getTurnNumber() % 37 === 0 && Math.abs(this.getSpeed()) < 1.4;
+  }
+
+  private aim(hasTarget: boolean) {
+    if (!hasTarget) {
+      this.setGunTurnRate(0);
+      return;
+    }
+    const firePower = this.chooseFirePower();
+    if (firePower <= 0) return;
+
+    const aimPoint = this.predictTarget(firePower);
+    const gunTurn = this.gunBearingTo(aimPoint.x, aimPoint.y);
+    this.setGunTurnRate(gunTurn);
+
+    const distance = this.distanceTo(this.targetX, this.targetY);
+    const tolerance = Math.max(0.8, Math.min(4.5, (MooseBot.MELEE_SPECIALIST ? 78 : 96) / Math.max(1, distance)));
+    if (this.getGunHeat() === 0 && Math.abs(gunTurn) <= tolerance) {
+      this.setFire(firePower);
     }
   }
 
-  override onHitWall(_event: HitWallEvent) {
-    this.movement.onHitWall();
-    this.setForward(-80);
+  private scan(hasTarget: boolean) {
+    if (!hasTarget) {
+      this.setRadarTurnRate(MooseBot.MELEE_SPECIALIST ? 60 : 45);
+      return;
+    }
+    const radarTurn = this.radarBearingTo(this.targetX, this.targetY);
+    const overshoot = Math.max(22, Math.min(MooseBot.MELEE_SPECIALIST ? 62 : 50, Math.abs(radarTurn) * 2.7));
+    this.setRadarTurnRate(radarTurn + Math.sign(radarTurn === 0 ? 1 : radarTurn) * overshoot);
   }
 
-  override onBotDeath(event: BotDeathEvent) {
-    this.combat.removeOpponent(event.victimId);
-    this.gun.removeOpponent(event.victimId);
-    this.movement.removeOpponent(event.victimId);
-    this.targetRadar.removeOpponent(event.victimId);
+  private predictTarget(firePower: number): Point {
+    const bulletSpeed = 20 - 3 * firePower;
+    let predictedX = this.targetX;
+    let predictedY = this.targetY;
+    let predictedDirection = this.targetDirection;
+    const turnRate = Math.abs(this.targetTurnRate) > 0.4 ? this.clamp(this.targetTurnRate, -7, 7) : 0;
+
+    if (MooseBot.AIM_MODE === 1 && this.distanceTo(this.targetX, this.targetY) > MooseBot.LONG_RANGE * 0.82) {
+      return { x: this.targetX, y: this.targetY };
+    }
+
+    for (let time = 1; time < (MooseBot.MELEE_SPECIALIST ? 82 : 100); time++) {
+      const distance = Math.hypot(predictedX - this.getX(), predictedY - this.getY());
+      if (time * bulletSpeed >= distance) break;
+
+      let direction = predictedDirection;
+      if (MooseBot.AIM_MODE === 2) {
+        direction += 3.5 * Math.sign(this.targetSpeed === 0 ? this.orbitDirection : this.targetSpeed);
+      } else if (MooseBot.AIM_MODE === 3) {
+        direction += 2.2 * this.orbitDirection + turnRate * 0.45;
+      } else if (MooseBot.AIM_MODE === 4) {
+        direction += 1.8 * this.orbitDirection + turnRate * 0.35;
+      } else if (MooseBot.AIM_MODE === 5) {
+        const lateralSign = Math.sign(this.targetSpeed === 0 ? this.orbitDirection : this.targetSpeed);
+        const distanceFactor = Math.min(1, Math.max(0.35, this.distanceTo(this.targetX, this.targetY) / 700));
+        direction += lateralSign * (5.5 + 4 * distanceFactor) + turnRate * 0.55;
+      } else if (MooseBot.AIM_MODE === 6) {
+        direction += turnRate * 0.85 + this.orbitDirection * (MooseBot.MELEE_SPECIALIST ? 1.3 : 2.8);
+      } else if (MooseBot.AIM_MODE === 7) {
+        const nearWall = !this.inside(predictedX, predictedY, MooseBot.WALL_MARGIN + 28);
+        direction += nearWall ? turnRate * 0.15 : 1.2 * this.orbitDirection + turnRate * 0.35;
+      }
+
+      predictedX += Math.sin(this.toRadians(direction)) * this.targetSpeed;
+      predictedY += Math.cos(this.toRadians(direction)) * this.targetSpeed;
+      predictedDirection = this.normalizeAbsoluteAngle(predictedDirection + turnRate);
+
+      if (!this.inside(predictedX, predictedY, MooseBot.BOT_MARGIN)) {
+        predictedX = this.clamp(predictedX, MooseBot.BOT_MARGIN, this.getArenaWidth() - MooseBot.BOT_MARGIN);
+        predictedY = this.clamp(predictedY, MooseBot.BOT_MARGIN, this.getArenaHeight() - MooseBot.BOT_MARGIN);
+        break;
+      }
+    }
+    return { x: predictedX, y: predictedY };
   }
 
-  override onRoundEnded(event: RoundEndedEvent) {
-    this.telemetry.recordRound({
-      roundNumber: event.roundNumber,
-      endTurn: event.turnNumber,
-      ...this.diagnostics,
-    });
-    this.telemetry.flush();
+  private chooseFirePower() {
+    const distance = this.distanceTo(this.targetX, this.targetY);
+    const myEnergy = this.getEnergy();
+    if (myEnergy <= 0.3) return 0;
+
+    let power: number;
+    if (distance < MooseBot.CLOSE_RANGE) {
+      power = MooseBot.MELEE_SPECIALIST ? 2.25 : 3;
+    } else if (distance < 300) {
+      power = MooseBot.MELEE_SPECIALIST ? 1.85 : 2.35;
+    } else if (distance < 540) {
+      power = MooseBot.MELEE_SPECIALIST ? 1.35 : 1.75;
+    } else if (distance < MooseBot.LONG_RANGE) {
+      power = MooseBot.MELEE_SPECIALIST ? 0.95 : 1.12;
+    } else {
+      power = MooseBot.MELEE_SPECIALIST ? 0.55 : 0.72;
+    }
+
+    power *= MooseBot.AGGRESSION;
+    if (MooseBot.MELEE_SPECIALIST && this.getEnemyCount() > 3) power = Math.min(power, 1.25);
+    if (this.targetEnergy < 4) power = Math.min(power, this.targetEnergy / 4 + 0.12);
+    if (myEnergy < 18) power = Math.min(power, MooseBot.MELEE_SPECIALIST ? 0.75 : 1.05);
+    if (myEnergy < 7) power = Math.min(power, 0.4);
+    return Math.max(0.1, Math.min(power, myEnergy - 0.15));
   }
 
-  override onDeath(_event: DeathEvent) {
-    this.telemetry.flush();
+  private wallSmoothed(heading: number) {
+    let smoothed = this.normalizeAbsoluteAngle(heading);
+    for (let i = 0; i < 52; i++) {
+      const probe = MooseBot.MELEE_SPECIALIST ? 185 : 155;
+      const x = this.getX() + Math.sin(this.toRadians(smoothed)) * probe;
+      const y = this.getY() + Math.cos(this.toRadians(smoothed)) * probe;
+      if (this.inside(x, y, MooseBot.WALL_MARGIN)) return smoothed;
+      smoothed = this.normalizeAbsoluteAngle(smoothed + (MooseBot.MELEE_SPECIALIST ? 6 : 5) * this.orbitDirection);
+    }
+    return this.directionTo(this.getArenaWidth() / 2, this.getArenaHeight() / 2);
   }
 
-  override onGameEnded(_event: GameEndedEvent) {
-    this.telemetry.flush();
-    this.learning.dispose();
+  private blendHeading(a: number, b: number, bWeight: number) {
+    return this.normalizeAbsoluteAngle(a + this.normalizeRelativeAngle(b - a) * bWeight);
   }
 
-  private selfState(turnNumber: number): SelfState {
-    return Object.freeze({
-      roundNumber: this.getRoundNumber(),
-      turnNumber,
-      botId: this.getMyId(),
-      x: this.getX(),
-      y: this.getY(),
-      direction: this.getDirection(),
-      gunDirection: this.getGunDirection(),
-      radarDirection: this.getRadarDirection(),
-      speed: this.getSpeed(),
-      energy: this.getEnergy(),
-      arenaWidth: this.getArenaWidth(),
-      arenaHeight: this.getArenaHeight(),
-      enemyCount: this.getEnemyCount(),
-    });
+  private inside(x: number, y: number, margin: number) {
+    return x > margin && x < this.getArenaWidth() - margin && y > margin && y < this.getArenaHeight() - margin;
+  }
+
+  private reverseOrbit() {
+    this.orbitDirection = -this.orbitDirection;
+    this.reversalClock = 0;
+    this.nextReversalAt = MooseBot.REVERSAL_MIN + Number(this.nextRandom() % BigInt(Math.max(1, MooseBot.REVERSAL_SPAN)));
+  }
+
+  private nextRandom() {
+    let x = BigInt(this.randomState);
+    x ^= x << 13n;
+    x ^= x >> 7n;
+    x ^= x << 17n;
+    x &= 0x7fffffffffffffffn;
+    this.randomState = Number(x % BigInt(Number.MAX_SAFE_INTEGER));
+    return x;
+  }
+
+  private clamp(value: number, min: number, max: number) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  private toRadians(degrees: number) {
+    return degrees * Math.PI / 180;
+  }
+
+  override onScannedBot(e: ScannedBotEvent) {
+    const scannedId = e.scannedBotId;
+    const distance = this.distanceTo(e.x, e.y);
+    const old = this.enemies.get(scannedId);
+    const elapsed = old ? Math.max(1, this.getTurnNumber() - old.seen) : 1;
+    const turnRate = old ? this.normalizeRelativeAngle(e.direction - old.direction) / elapsed : 0;
+    this.enemies.set(scannedId, { id: scannedId, x: e.x, y: e.y, energy: e.energy, direction: e.direction, speed: e.speed, turnRate, seen: this.getTurnNumber() });
+    const currentDistance = this.targetId < 0 ? Number.POSITIVE_INFINITY : this.distanceTo(this.targetX, this.targetY);
+    let accept: boolean;
+    if (this.targetId < 0 || scannedId === this.targetId) {
+      accept = true;
+    } else if (this.getEnemyCount() > 1) {
+      const score = distance + e.energy * 2.5 + (e.energy < 10 ? -180 : 0) + (distance < 190 ? -60 : 0);
+      const currentScore = currentDistance + this.targetEnergy * 2.5 + (this.targetEnergy < 10 ? -180 : 0) + (currentDistance < 190 ? -60 : 0);
+      accept = score < currentScore * 0.9 || (e.energy < 7 && distance < 560);
+    } else {
+      accept = distance < currentDistance * 0.78 || e.energy < this.targetEnergy - 8;
+    }
+    if (!accept) return;
+
+    if (scannedId === this.targetId) {
+      const energyDrop = this.targetEnergy - e.energy;
+      if (energyDrop > 0.09 && energyDrop <= 3.01) this.reverseOrbit();
+      if (this.targetSeenAt >= 0) {
+        const elapsed = Math.max(1, this.getTurnNumber() - this.targetSeenAt);
+        const observedTurn = this.normalizeRelativeAngle(e.direction - this.targetDirection) / elapsed;
+        this.targetTurnRate = 0.64 * this.targetTurnRate + 0.36 * observedTurn;
+      }
+    } else {
+      this.targetTurnRate = 0;
+    }
+
+    this.targetId = scannedId;
+    this.targetX = e.x;
+    this.targetY = e.y;
+    this.targetDirection = e.direction;
+    this.targetSpeed = e.speed;
+    this.targetEnergy = e.energy;
+    this.targetAge = 0;
+    this.targetSeenAt = this.getTurnNumber();
+  }
+
+  override onBotDeath(e: BotDeathEvent) {
+    this.enemies.delete(e.victimId);
+    if (e.victimId === this.targetId) {
+      this.targetId = -1;
+      this.targetAge = 999;
+    }
+  }
+
+  override onHitByBullet(_e: HitByBulletEvent) {
+    this.reverseOrbit();
+  }
+
+  override onHitBot(_e: HitBotEvent) {
+    this.reverseOrbit();
+    this.setTargetSpeed(MooseBot.MELEE_SPECIALIST ? -8 : -6);
+  }
+
+  override onHitWall(_e: HitWallEvent) {
+    this.reverseOrbit();
+    this.setTurnRate(this.bearingTo(this.getArenaWidth() / 2, this.getArenaHeight() / 2));
+    this.setTargetSpeed(7);
   }
 }
 
