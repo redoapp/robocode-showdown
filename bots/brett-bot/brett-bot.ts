@@ -46,7 +46,8 @@ const REAL_WAVE_WEIGHT = 5; // real bullets teach the GF gun harder
 const GUN_DECAY = 0.985; // virtual-gun rolling score decay per wave
 const GUN_REWARD = 0.045;
 // Initial virtual-gun scores: bias toward lead guns until data says otherwise.
-const GUN_INIT = [0.3, 0.38, 0.42, 0.33, 0.4]; // [head-on, linear, circular, GF, damped-circular]
+// [head-on, linear, circular, GF, damped-circular, random-GF]
+const GUN_INIT = [0.3, 0.38, 0.42, 0.33, 0.4, 0.3];
 const DEBUG = !!process.env.DEBUG_BRETT;
 
 const toRad = (d: number) => (d * Math.PI) / 180;
@@ -433,6 +434,8 @@ class BrettBot extends Bot {
       const options = [
         { dir: 1, speed: 8 },
         { dir: -1, speed: 8 },
+        { dir: 1, speed: 4 },
+        { dir: -1, speed: 4 },
         { dir: this.orbitDir, speed: 0 },
       ];
       let bestDanger = Infinity;
@@ -680,6 +683,9 @@ class BrettBot extends Bot {
       this.aimCircular(target, bulletSpeed, en.speed, toRad(target.turnRate)), // 2: circular w/ wall clamp
       this.aimGuessFactor(target, bulletSpeed, seg, absB), // 3: GF stats
       this.aimCircular(target, bulletSpeed, target.emaSpeed, toRad(target.emaTurnRate)), // 4: damped circular (EMA velocity)
+      // 5: random within the escape envelope — a surfer can learn any fixed
+      // pattern, but not dice. Only fires for real if it out-scores the rest.
+      absB + (Math.random() * 2 - 1) * 0.75 * toDeg(Math.asin(clamp(8 / bulletSpeed, 0, 1))) * target.latDir,
     ];
 
     // Best gun takes the shot.
