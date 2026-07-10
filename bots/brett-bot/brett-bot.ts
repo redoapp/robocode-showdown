@@ -236,6 +236,7 @@ class BrettBot extends Bot {
     const m = this.dmgDealt.get(e.turnNumber) ?? new Map<number, number>();
     m.set(e.victimId, (m.get(e.victimId) ?? 0) + e.damage);
     this.dmgDealt.set(e.turnNumber, m);
+    this.rollingHits += 1;
   }
 
   override onHitByBullet(e: HitByBulletEvent) {
@@ -260,6 +261,9 @@ class BrettBot extends Bot {
         const offset = this.normalizeRelativeAngle(actual - best.absBearing);
         const gf = clamp((offset / best.maxEsc) * best.latDirAtFire, -1, 1);
         const idx = Math.round(((gf + 1) / 2) * (BINS - 1));
+        // Rolling decay: old hits (and the initial priors) fade so we adapt to
+        // a learning gun as fast as it adapts to us.
+        for (let i = 0; i < BINS; i++) this.surfDanger[i] *= 1 - 1 / 12;
         for (let i = Math.max(0, idx - 2); i <= Math.min(BINS - 1, idx + 2); i++) {
           this.surfDanger[i] += 3 * (1 - Math.abs(i - idx) / 3);
         }
@@ -691,6 +695,10 @@ class BrettBot extends Bot {
     let fired = false;
     if (this.getGunHeat() === 0 && Math.abs(gunError) < tolerance && this.getEnergy() > power + 0.1 && scanAge <= 3) {
       fired = this.setFire(power);
+      if (fired) {
+        this.rollingShots = this.rollingShots * 0.96 + 1;
+        this.rollingHits *= 0.96;
+      }
     }
 
     // Wave every turn (while the scan is fresh): real shots teach harder,
@@ -725,12 +733,14 @@ class BrettBot extends Bot {
         if (turn - w.fireTurn < 130) keep.push(w);
         continue;
       }
-      // Wave broke on the target: learn.
+      // Wave broke on the target: learn. Rolling decay so the gun tracks an
+      // adapting mover (a surfer relocates its safe spot; stale peaks are traps).
       const actual = toDeg(Math.atan2(t.cur.y - w.y, t.cur.x - w.x));
       const offset = this.normalizeRelativeAngle(actual - w.absBearing);
       const gf = clamp((offset / w.maxEsc) * w.latDir, -1, 1);
       const idx = Math.round(((gf + 1) / 2) * (BINS - 1));
       for (const bins of [this.gfBins[w.seg], this.gfBins[27]]) {
+        for (let i = 0; i < BINS; i++) bins[i] *= 1 - w.weight / 110;
         for (let i = Math.max(0, idx - 2); i <= Math.min(BINS - 1, idx + 2); i++) {
           bins[i] += w.weight * (1 - Math.abs(i - idx) / 3);
         }
@@ -794,11 +804,19 @@ class BrettBot extends Bot {
 
   // --- fire power ---------------------------------------------------------------
 
+  // Decaying counters -> rolling real-bullet hit rate (both persist across rounds).
+  private rollingShots = 0;
+  private rollingHits = 0;
+
   private pickPower(dist: number, enemyEnergy: number, melee: boolean): number {
     let p: number;
     if (dist < 140) p = 3;
     else p = clamp(3 - (dist - 140) / 260, 1.15, 3);
     if (melee) p = Math.min(p, 2.2);
+    // Against a mover we can't reliably hit (a surfer), lighter bullets win the
+    // attrition: faster bullet = smaller escape envelope, less energy per miss.
+    const hitRate = this.rollingHits / Math.max(this.rollingShots, 1);
+    if (dist > 220 && this.rollingShots > 8 && hitRate < 0.18) p = Math.min(p, 1.55);
     // Don't overkill: exact damage needed is 4p (p<=1) or 6p-2 (p>1).
     if (enemyEnergy <= 16) {
       const needed = enemyEnergy > 4 ? (enemyEnergy + 2) / 6 : enemyEnergy / 4;
