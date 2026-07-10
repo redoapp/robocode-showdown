@@ -12,6 +12,10 @@ __pycache__/
 scripts/tournament-state.json
 recordings/
 
+# Local schema-v2 runs, evaluation reports, and candidate checkpoints for
+# alee-bot. Promotion is the only path from here to tracked champion artifacts.
+bots/alee-bot/training/
+
 # OS / editor cruft
 .DS_Store
 Thumbs.db

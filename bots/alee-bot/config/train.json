@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "seed": 20260709,
+  "epochs": 100,
+  "batchSize": 64,
+  "learningRate": 0.003,
+  "weightDecay": 0.0001,
+  "realWaveWeight": 3,
+  "holdoutOpponent": "bcn-bot",
+  "earlyStoppingMetric": "simulatedHitRate"
+}
