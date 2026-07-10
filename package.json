@@ -11,7 +11,18 @@
     "battle": "node scripts/battle.mjs",
     "gui": "node scripts/gui.mjs",
     "tournament": "node scripts/tournament.mjs",
-    "bracket": "node scripts/bracket-view.mjs"
+    "bracket": "node scripts/bracket-view.mjs",
+    "bot:test": "cd bots && npm run typecheck && npm run test:alee",
+    "bot:collect": "mise exec -- node scripts/collect-bot.mjs",
+    "bot:train": "uv run --python 3.12 --with torch scripts/train_guess_factor.py",
+    "bot:report-model": "node scripts/offline-report-candidate.mjs",
+    "bot:evaluate": "mise exec -- node scripts/evaluate-bot.mjs",
+    "bot:evaluate-guns": "mise exec -- node scripts/evaluate-guns.mjs",
+    "bot:train-tactics": "mise exec -- node scripts/train-tactics.mjs",
+    "bot:promote": "node scripts/promote-bot.mjs",
+    "bot:reproduce-champion": "node scripts/reproduce-champion.mjs",
+    "test:evaluation": "node --test scripts/test/*.test.mjs",
+    "train:guess-factor": "npm run bot:train"
   },
   "engines": {
     "node": ">=22"

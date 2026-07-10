@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "leagues": {
+    "sanity": {
+      "rounds": 50,
+      "parallelism": 2,
+      "matchups": [
+        ["SampleBot"],
+        ["Hunter"],
+        ["SampleBot", "Hunter"]
+      ]
+    },
+    "training": {
+      "rounds": 200,
+      "parallelism": 2,
+      "matchups": [
+        ["SampleBot"],
+        ["SamplePyBot"],
+        ["Hunter"],
+        ["joshmoody-bot"],
+        ["SampleBot", "Hunter"],
+        ["SamplePyBot", "joshmoody-bot", "Hunter"]
+      ]
+    },
+    "promotion": {
+      "rounds": 500,
+      "parallelism": 2,
+      "protectedOpponents": ["bcn-bot", "SampleBot", "Hunter"],
+      "matchups": [
+        ["bcn-bot"],
+        ["SampleBot"],
+        ["SamplePyBot"],
+        ["Hunter"],
+        ["joshmoody-bot"],
+        ["SampleBot", "Hunter"],
+        ["SamplePyBot", "joshmoody-bot", "Hunter"]
+      ]
+    },
+    "nemesis": {
+      "rounds": 500,
+      "parallelism": 1,
+      "protectedOpponents": ["bcn-bot"],
+      "matchups": [
+        ["bcn-bot"],
+        ["bcn-bot", "Hunter"],
+        ["bcn-bot", "joshmoody-bot", "Hunter"]
+      ]
+    },
+    "bradley": {
+      "rounds": 500,
+      "parallelism": 1,
+      "protectedOpponents": ["bcn-bot"],
+      "matchups": [
+        ["bcn-bot"]
+      ]
+    }
+  }
+}

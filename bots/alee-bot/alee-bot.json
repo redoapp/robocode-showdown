@@ -1,0 +1,16 @@
+{
+  "name": "alee-bot",
+  "version": "1.0",
+  "authors": [
+    "Alee"
+  ],
+  "description": "Contextual virtual guns, segmented wave surfing, and confidence-gated learning.",
+  "platform": "Node.js",
+  "programmingLang": "TypeScript",
+  "gameTypes": [
+    "classic",
+    "1v1",
+    "melee"
+  ],
+  "tournament": true
+}
