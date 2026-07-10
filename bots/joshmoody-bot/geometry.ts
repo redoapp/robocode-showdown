@@ -1,5 +1,5 @@
 import { Bot } from "@robocode.dev/tank-royale-bot-api";
-import { Enemy } from "./enemy";
+import type { Enemy } from "./enemy.ts";
 
 export interface Vector {
   x: number;

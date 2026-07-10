@@ -1,12 +1,14 @@
 import { Bot } from "@robocode.dev/tank-royale-bot-api";
-import { Context } from "./context";
+import type { Context } from "./context.ts";
 
-export enum InputType {
-  Radar = "radar",
-  Gun = "gun",
-  Move = "move",
-  Rotate = "rotate",
-}
+export const InputType = {
+  Radar: "radar",
+  Gun: "gun",
+  Move: "move",
+  Rotate: "rotate",
+} as const;
+
+export type InputType = (typeof InputType)[keyof typeof InputType];
 
 export interface InputQueue {
   enqueue: (n: number) => void;

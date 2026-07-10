@@ -1,5 +1,5 @@
 import { Bot, ScannedBotEvent } from "@robocode.dev/tank-royale-bot-api";
-import { distance, inferredPosition, Vector } from "./geometry";
+import { distance, inferredPosition, type Vector } from "./geometry.ts";
 
 export type Enemy = ScannedBotEvent[];
 export type Enemies = Map<number, Enemy>;

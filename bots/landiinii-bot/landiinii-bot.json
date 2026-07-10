@@ -1,0 +1,16 @@
+{
+  "name": "landiinii-bot",
+  "version": "1.0",
+  "authors": [
+    "Anonymous"
+  ],
+  "description": "landiinii-bot — a Robocode Tank Royale bot.",
+  "platform": "Node.js",
+  "programmingLang": "TypeScript",
+  "gameTypes": [
+    "classic",
+    "1v1",
+    "melee"
+  ],
+  "tournament": true
+}

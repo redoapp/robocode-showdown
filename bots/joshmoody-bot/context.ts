@@ -1,10 +1,15 @@
-import { Bot, Color, IGraphics } from "@robocode.dev/tank-royale-bot-api";
-import { initQueues, InputPlanner, InputQueue, InputType } from "./input";
-import { createRadarPlanner } from "./input-planners/radar";
-import { createEnemiesProxy, Enemies } from "./enemy";
-import { createGunPlanner } from "./input-planners/gun";
-import { createRotationPlanner } from "./input-planners/rotation";
-import { createMovementPlanner } from "./input-planners/movement";
+import { Bot, Color, type IGraphics } from "@robocode.dev/tank-royale-bot-api";
+import {
+  initQueues,
+  InputType,
+  type InputPlanner,
+  type InputQueue,
+} from "./input.ts";
+import { createRadarPlanner } from "./input-planners/radar.ts";
+import { createEnemiesProxy, type Enemies } from "./enemy.ts";
+import { createGunPlanner } from "./input-planners/gun.ts";
+import { createRotationPlanner } from "./input-planners/rotation.ts";
+import { createMovementPlanner } from "./input-planners/movement.ts";
 
 export interface Context {
   self: Bot;
