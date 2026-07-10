@@ -1,18 +1,21 @@
 import {
   BOT_RADIUS,
-  CombatState,
-  CreateFriendlyWave,
-  OpponentState,
-  ResolvedFriendlyWave,
-  SelfState,
   absoluteBearing,
   binToGuessFactor,
   clamp,
   distance,
   lateralDirection,
   normalizeRelativeAngle,
-} from "./combat-state.js";
-import { GUESS_FACTOR_BINS, LearningSystem, makeFeatureVector } from "./learning-system.js";
+} from "./combat-state.ts";
+import type {
+  CombatState,
+  CreateFriendlyWave,
+  OpponentState,
+  ResolvedFriendlyWave,
+  SelfState,
+} from "./combat-state.ts";
+import { GUESS_FACTOR_BINS, makeFeatureVector } from "./learning-system.ts";
+import type { LearningSystem } from "./learning-system.ts";
 
 export type GunName = "head-on" | "linear" | "circular" | "guess-factor-histogram" | "knn" | "mlp-v2";
 type CandidateAim = Readonly<{ gun: GunName; angle: number }>;
@@ -101,11 +104,14 @@ function circularAim(self: SelfState, opponent: OpponentState, projectileSpeed: 
 }
 
 export class GunSystem {
+  private readonly learning: LearningSystem;
   private readonly histograms = new Map<number, Map<string, number[]>>();
   private readonly neighbors = new Map<number, Neighbor[]>();
   private readonly virtualGunStats = new Map<number, Map<string, Map<GunName, GunStats>>>();
 
-  constructor(private readonly learning: LearningSystem) {}
+  constructor(learning: LearningSystem) {
+    this.learning = learning;
+  }
 
   plan(combat: CombatState, self: SelfState, opponent: OpponentState, powerBias = 1): GunPlan {
     const range = distance(self, opponent);

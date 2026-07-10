@@ -2,9 +2,6 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-  CombatState,
-  OpponentState,
-  SelfState,
   absoluteBearing,
   bulletSpeed,
   clamp,
@@ -12,7 +9,8 @@ import {
   distanceToWallAlongHeading,
   lateralDirection,
   normalizeRelativeAngle,
-} from "./combat-state.js";
+} from "./combat-state.ts";
+import type { CombatState, OpponentState, SelfState } from "./combat-state.ts";
 
 export const FEATURE_SCHEMA_VERSION = 2;
 export const FEATURE_COUNT = 18;

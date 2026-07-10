@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
-import { OpponentState, SelfState, clamp } from "./combat-state.js";
+import { clamp } from "./combat-state.ts";
+import type { OpponentState, SelfState } from "./combat-state.ts";
 
 export type TacticalPolicyConfig = Readonly<{
   schemaVersion: 1;

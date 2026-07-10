@@ -1,7 +1,7 @@
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { ResolvedFriendlyWave } from "./combat-state.js";
-import { FEATURE_COUNT, FEATURE_SCHEMA_VERSION, GUESS_FACTOR_BINS } from "./learning-system.js";
+import type { ResolvedFriendlyWave } from "./combat-state.ts";
+import { FEATURE_COUNT, FEATURE_SCHEMA_VERSION, GUESS_FACTOR_BINS } from "./learning-system.ts";
 
 export type WaveOutcomeRecord = Readonly<{
   recordType: "wave-outcome";

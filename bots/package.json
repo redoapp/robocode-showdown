@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "postinstall": "node -e \"process.stdout.write('Bot API installed. You can now boot bots from the Robocode GUI.\\n')\"",
-    "test:alee": "node --import tsx --test alee-bot/test/*.test.ts",
+    "test:alee": "node --experimental-strip-types --test alee-bot/test/*.test.ts",
     "typecheck": "tsc --project tsconfig.json"
   },
   "dependencies": {
