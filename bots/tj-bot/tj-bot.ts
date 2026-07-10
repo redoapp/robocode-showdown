@@ -88,6 +88,8 @@ class TjBot extends Bot {
   private modeShots = [0, 0]; // dodge-mode bandit: 0 = ray-dodge, 1 = random
   private modeHits = [0, 0];
   private recentResults: number[] = []; // rolling real-shot outcomes (1/0)
+  private surfEps = 0.22; // per-round personality: surf randomness rate
+  private lastHitTakenTurn = -999;
 
   private history: Snapshot[] = [];
   private waves: Wave[] = [];
@@ -164,7 +166,14 @@ class TjBot extends Bot {
     this.orbitDir = Math.random() < 0.5 ? 1 : -1;
     this.wallFlipCooldown = 0;
     this.surfing = false;
-    this.pressDist = 400;
+    // Round personalities: rotate the distance band and randomness rate so
+    // persistent cross-round learners keep training on a bot we no longer are.
+    {
+      const r = this.getRoundNumber() % 3;
+      this.pressDist = [400, 340, 450][r];
+      this.surfEps = [0.22, 0.3, 0.15][r];
+    }
+    this.lastHitTakenTurn = -999;
     this.meleeEnemies.clear();
     this.meleeMode = this.getEnemyCount() > 1;
 
@@ -252,6 +261,7 @@ class TjBot extends Bot {
 
   override onHitByBullet(e: HitByBulletEvent) {
     this.enemyFired = true;
+    this.lastHitTakenTurn = this.getTurnNumber();
     this.pressDist = Math.min(420, this.pressDist + 50);
     // Find the wave that matches this bullet and record the hit GF bin, so
     // surfing learns which escape angles their gun punishes.
@@ -383,8 +393,8 @@ class TjBot extends Bot {
       // runner-up escape route when it isn't meaningfully more dangerous.
       let bestChoice = scored[0].choice;
       if (
-        Math.random() < 0.12 &&
-        scored[1].danger < scored[0].danger * 1.5 + 0.01
+        Math.random() < this.surfEps &&
+        scored[1].danger < scored[0].danger * 2.0 + 0.02
       ) {
         bestChoice = scored[1].choice;
       }
@@ -988,8 +998,10 @@ class TjBot extends Bot {
     const n = this.recentResults.length;
     if (n >= 8) {
       const rate = this.recentResults.reduce((a, b) => a + b, 0) / n;
-      if (dist > 220 && rate < 0.25) power = Math.min(power, 1.5);
-      if (dist > 220 && rate < 0.12) power = Math.min(power, 1.1);
+      // Only throttle when their gun is actually punishing us — against a
+      // cold opponent, keep spending: points now beat energy later.
+      const punished = this.getTurnNumber() - this.lastHitTakenTurn < 80;
+      if (punished && dist > 220 && rate < 0.25) power = Math.min(power, 1.5);
       // Vampire mode: above ~33% hit rate every shot is energy-POSITIVE
       // (hits refund 3x power) — so when the gun is locked in, go heavy.
       if (rate > 0.45 && dist < 500 && energy > 20) {
