@@ -663,6 +663,9 @@ mise exec -- npm run battle -- alee-bot Hunter --rounds 100
 - Bradley Nelson's `bcn-bot` is the primary protected nemesis benchmark.
 - Model inference remains bounded and in-process with the bot.
 - Physics and safety remain deterministic.
+- Matchup adaptation is observation-based: the shipped one-on-one stop/go
+  counter keys off a narrowly tested opening-fire signature, never a bot name,
+  and is disabled for rounds that begin as melee.
 - Supervised targeting precedes RL.
 - RL is hierarchical and league-trained.
 - AlphaGo-style MCTS is deferred pending a cloneable fast simulator.
