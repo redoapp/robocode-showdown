@@ -1,42 +1,60 @@
-/**
- * joshmoody-bot — good luck!
- *
- * See docs/API_CHEATSHEET.md for the most useful methods and events.
- * Boot it locally: start the server in the Robocode GUI, then run this bot
- * from the GUI's bot list (or ./joshmoody-bot.sh from a terminal).
- */
-import { Bot, ScannedBotEvent, HitByBulletEvent, HitWallEvent } from "@robocode.dev/tank-royale-bot-api";
+import {
+  Bot,
+  Color,
+  HitByBulletEvent,
+  ScannedBotEvent,
+} from "@robocode.dev/tank-royale-bot-api";
+import { Context, initContext } from "./context";
+import { dequeueInputs, enqueueInputs } from "./input";
+
+const ENEMY_HISTORY_LENGTH = 5;
+const ENEMY_HISTORY_MAX_AGE = 200;
 
 class JoshmoodyBot extends Bot {
   static main() {
     new JoshmoodyBot().start();
   }
 
+  private context: Context | null = null;
+
   // Runs once at the start of each round. Your main loop goes here.
   override run() {
+    this.setAdjustRadarForGunTurn(true);
+    this.setAdjustRadarForBodyTurn(true);
+    this.setAdjustGunForBodyTurn(true);
+    this.setBodyColor(Color.DARK_GREEN);
+    this.setTurretColor(Color.DARK_OLIVE_GREEN);
+    this.setGunColor(Color.YELLOW_GREEN);
+    this.setRadarColor(Color.MEDIUM_SEA_GREEN);
+    this.setBulletColor(Color.LIGHT_GOLDENROD_YELLOW);
+    this.setScanColor(Color.LIGHT_BLUE);
+    const context = initContext(this);
+    this.context = context;
     while (this.isRunning()) {
-      this.forward(100);
-      this.turnGunLeft(360);
-      this.back(100);
-      this.turnGunLeft(360);
+      context.graphics = this.getGraphics();
+      enqueueInputs(context);
+      dequeueInputs(context.inputQueues);
+      this.go();
     }
   }
 
   // Fires when the radar sweeps across an enemy — this is when you shoot.
   override onScannedBot(e: ScannedBotEvent) {
-    this.fire(1);
+    const oldEventHistory = this.context?.enemies.get(e.scannedBotId) ?? [];
+    const truncatedOldEventHistory =
+      oldEventHistory.length >= ENEMY_HISTORY_LENGTH
+        ? oldEventHistory.slice(
+            oldEventHistory.length - ENEMY_HISTORY_LENGTH + 1,
+          )
+        : oldEventHistory;
+    const eventHistory = [...truncatedOldEventHistory, e].filter(
+      (e) => this.getTurnNumber() - e.turnNumber < ENEMY_HISTORY_MAX_AGE,
+    );
+    this.context?.enemies.set(e.scannedBotId, eventHistory);
   }
 
-  // Fires when an enemy bullet hits you — dodge!
   override onHitByBullet(e: HitByBulletEvent) {
-    const bearing = this.calcBearing(e.bullet.direction);
-    this.turnRight(90 - bearing);
-  }
-
-  // Fires when you drive into a wall.
-  override onHitWall(e: HitWallEvent) {
-    this.back(50);
-    this.turnRight(45);
+    if (this.context) this.context.hitByBullet = true;
   }
 }
 
