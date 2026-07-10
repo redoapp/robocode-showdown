@@ -1,11 +1,15 @@
 {
   "name": "jbosley-bot",
-  "version": "1.0",
+  "version": "2.0",
   "authors": [
     "Josh Bosley"
   ],
-  "description": "jbosley-bot — drives around and shoots at whatever it sees.",
+  "description": "jbosley-bot — a wave-surfing, anti-surfer GuessFactor duelist.",
   "platform": "Node.js",
   "programmingLang": "TypeScript",
-  "gameTypes": ["classic", "1v1", "melee"]
+  "gameTypes": [
+    "classic",
+    "1v1",
+    "melee"
+  ]
 }
