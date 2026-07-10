@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "status": "invalid-for-training-reference-only",
+  "recordedAt": "2026-07-09",
+  "repositoryCommit": "0a6090b679f33e16570e49e5cc2592de23297b12",
+  "repositoryDirty": true,
+  "zgmlCommit": "286381c055ef3fe2c50d2105913d756716dbd72d",
+  "runtime": {
+    "node": "25.9.0",
+    "java": "Temurin 21.0.11+10 LTS",
+    "tankRoyale": "1.0.2",
+    "arena": "800x600",
+    "gunCoolingRate": 0.1
+  },
+  "reasonInvalid": [
+    "friendly waves used scan count instead of game turns",
+    "friendly waves did not retain opponent identity",
+    "GuessFactor labels used selected aim angle instead of head-on bearing",
+    "the learned model matched the majority-class baseline"
+  ],
+  "battles": [
+    {
+      "command": "mise exec -- npm run battle -- alee-bot SampleBot --rounds 100",
+      "rounds": 100,
+      "results": [
+        { "rank": 1, "name": "SampleBot", "totalScore": 11425, "firstPlaces": 92 },
+        { "rank": 2, "name": "alee-bot", "totalScore": 1944, "firstPlaces": 9 }
+      ]
+    },
+    {
+      "command": "mise exec -- npm run battle -- alee-bot Hunter --rounds 100",
+      "rounds": 100,
+      "results": [
+        { "rank": 1, "name": "Hunter", "totalScore": 11032, "firstPlaces": 77 },
+        { "rank": 2, "name": "alee-bot", "totalScore": 6120, "firstPlaces": 23 }
+      ]
+    },
+    {
+      "command": "mise exec -- npm run battle -- alee-bot SampleBot Hunter --rounds 50",
+      "rounds": 50,
+      "results": [
+        { "rank": 1, "name": "SampleBot", "totalScore": 8544, "firstPlaces": 38 },
+        { "rank": 2, "name": "Hunter", "totalScore": 6789, "firstPlaces": 11 },
+        { "rank": 3, "name": "alee-bot", "totalScore": 2688, "firstPlaces": 1 }
+      ]
+    }
+  ]
+}

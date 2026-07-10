@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "policyId": "deterministic-default",
+  "decisionInterval": 12,
+  "preferredRange": 280,
+  "dangerAversion": 1,
+  "antiRamDistance": 120,
+  "powerBias": 1
+}
