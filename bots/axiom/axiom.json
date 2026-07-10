@@ -1,0 +1,16 @@
+{
+  "name": "axiom",
+  "version": "1.0",
+  "authors": [
+    "Andrew McMullin"
+  ],
+  "description": "Axiom: lock radar, virtual guns, wave surfing, hypothesis dodge rays.",
+  "platform": "Node.js",
+  "programmingLang": "TypeScript",
+  "gameTypes": [
+    "classic",
+    "1v1",
+    "melee"
+  ],
+  "tournament": true
+}
