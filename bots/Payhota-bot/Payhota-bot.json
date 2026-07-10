@@ -1,0 +1,12 @@
+{
+  "name": "Payhota-bot",
+  "version": "1.0",
+  "authors": [
+    "Robocode Showdown"
+  ],
+  "description": "Payhota-bot — a point-blank rammer: evasive close, wall smoothing, heavy fire.",
+  "platform": "Node.js",
+  "programmingLang": "TypeScript",
+  "gameTypes": ["classic", "1v1", "melee"],
+  "tournament": true
+}
