@@ -1,13 +1,14 @@
 """ndriggs-bot — deep-RL Robocode Tank Royale bot.
 
 The movement + firing policy is a neural network trained with MuZero
-(opendilab/LightZero) via self-play + a scripted-opponent league in a faithful
-Python re-implementation of the Tank Royale v1.0.2 physics. At runtime the bot
-runs the exported policy network (TorchScript) every other turn; radar lock,
-linear-lead gun tracking and enemy modeling are deterministic reflexes.
+(opendilab/LightZero) via league self-play in a bit-exact Python re-implementation
+of the Tank Royale v1.0.2 physics (mixed 1v1 + 4-bot-melee training). At runtime
+the bot runs the exported policy network (TorchScript) every other turn; radar
+lock, 2nd-order predictive gun tracking and multi-enemy modeling are
+deterministic reflexes.
 
 Weights are downloaded from HuggingFace on first boot (cached afterwards):
-    https://huggingface.co/ndriggs/robocode-tank-rl
+    https://huggingface.co/ml-at-redo1/robocode-tank-rl
 Override for local testing:  NDRIGGS_MODEL_PATH=/path/to/actor.pt
 
 NOTE: the Harness section below is a verbatim mirror of rl-training/tanksim/
@@ -18,6 +19,7 @@ from __future__ import annotations
 
 import math
 import os
+import random as _random
 import sys
 from dataclasses import dataclass, field
 
@@ -26,6 +28,7 @@ import torch
 
 from robocode_tank_royale.bot_api.bot import Bot
 from robocode_tank_royale.bot_api.events import (
+    BotDeathEvent,
     BulletHitBotEvent,
     HitByBulletEvent,
     HitBotEvent,
@@ -45,12 +48,16 @@ BOT_RADIUS = 18.0
 MAX_GUN_TURN_RATE = 20.0
 MAX_RADAR_TURN_RATE = 45.0
 
-GUN_LEAD = 0.6
+GUN_LEAD_NOMINAL = 0.65
+GUN_LEAD_RANGE = (0.25, 1.0)
 SCAN_STALE_LIMIT = 12
+ENEMY_ALIVE_LIMIT = 40
+MELEE_SWEEP_INTERVAL = 110
 
 TURN_OPTIONS = (-10.0, -4.0, 0.0, 4.0, 10.0)
 SPEED_OPTIONS = (-8.0, 0.0, 8.0)
 FIRE_OPTIONS = (0.0, 1.0, 3.0)
+FIRE_AUTO = 1.0
 NUM_ACTIONS = len(TURN_OPTIONS) * len(SPEED_OPTIONS) * len(FIRE_OPTIONS)
 
 HF_REPO_ID = "ml-at-redo1/robocode-tank-rl"
@@ -90,17 +97,15 @@ class MyState:
     speed: float
     energy: float
     gun_heat: float
+    enemy_count: int = 1
 
 
 @dataclass
 class TickEvents:
-    scanned_x: float | None = None
-    scanned_y: float | None = None
-    scanned_direction: float = 0.0
-    scanned_speed: float = 0.0
-    scanned_energy: float = 100.0
-    hit_by_bullets: list = field(default_factory=list)
-    my_bullet_hits: list = field(default_factory=list)
+    scanned: list = field(default_factory=list)  # [(id, x, y, dir, speed, energy)]
+    hit_by_bullets: list = field(default_factory=list)  # [(power, dir, dmg, shooter_id)]
+    my_bullet_hits: list = field(default_factory=list)  # [(power, dmg, victim_id)]
+    enemies_died: list = field(default_factory=list)
     hit_wall: bool = False
     hit_bot: bool = False
 
@@ -114,74 +119,134 @@ class IncomingBullet:
     fired_turn: int
 
 
+@dataclass
+class EnemyModel:
+    x: float
+    y: float
+    direction: float = 0.0
+    speed: float = 0.0
+    energy: float = 100.0
+    last_scan_turn: int = -999
+    prev_scan_energy: float | None = None
+    prev_scan_turn: int = -999
+    damage_dealt_since_scan: float = 0.0
+    energy_given_since_scan: float = 0.0
+    scan_history: list = field(default_factory=list)
+
+
 class Harness:
     def __init__(self, obs_mode: str = "threat"):
         self.obs_mode = obs_mode
-        self.obs_dim = 33 if obs_mode == "threat" else 24
+        self.obs_dim = 35 if obs_mode == "threat" else 24
+        self.rng = _random.Random()
         self.reset()
 
     def reset(self) -> None:
         self.turn = 0
-        self.enemy_known = False
-        self.enemy_x = ARENA_WIDTH / 2
-        self.enemy_y = ARENA_HEIGHT / 2
-        self.enemy_direction = 0.0
-        self.enemy_speed = 0.0
-        self.enemy_energy = 100.0
-        self.last_scan_turn = -999
-        self.prev_scan_energy = None
-        self.prev_scan_turn = -999
-        self.damage_dealt_since_scan = 0.0
-        self.energy_given_since_scan = 0.0
+        self.enemies = {}
+        self.target_id = None
         self.incoming = None
         self.enemy_fired_recently = 0.0
         self.last_firepower = 0.0
+        self.current_lead = GUN_LEAD_NOMINAL
+        self._was_gun_hot = True
+        self._last_sweep_turn = 0
+        self._sweep_until = 0
+
+    @property
+    def enemy_known(self) -> bool:
+        return self.target_id is not None
+
+    def _target(self):
+        return self.enemies.get(self.target_id) if self.target_id is not None else None
+
+    @property
+    def enemy_x(self):
+        t = self._target()
+        return t.x if t else ARENA_WIDTH / 2
+
+    @property
+    def enemy_y(self):
+        t = self._target()
+        return t.y if t else ARENA_HEIGHT / 2
+
+    @property
+    def enemy_direction(self):
+        t = self._target()
+        return t.direction if t else 0.0
+
+    @property
+    def enemy_speed(self):
+        t = self._target()
+        return t.speed if t else 0.0
+
+    @property
+    def enemy_energy(self):
+        t = self._target()
+        return t.energy if t else 100.0
+
+    @property
+    def last_scan_turn(self):
+        t = self._target()
+        return t.last_scan_turn if t else -999
 
     def observe_tick(self, me: MyState, ev: TickEvents) -> None:
         self.turn += 1
-        for power, damage in ev.my_bullet_hits:
-            self.damage_dealt_since_scan += damage
-        for power, _direction, _damage in ev.hit_by_bullets:
-            self.energy_given_since_scan += 3.0 * power
 
-        if ev.scanned_x is not None:
-            if self.prev_scan_energy is not None:
+        for bot_id in ev.enemies_died:
+            self.enemies.pop(bot_id, None)
+
+        for power, damage, victim_id in ev.my_bullet_hits:
+            if victim_id in self.enemies:
+                self.enemies[victim_id].damage_dealt_since_scan += damage
+        for power, _direction, _damage, shooter_id in ev.hit_by_bullets:
+            if shooter_id in self.enemies:
+                self.enemies[shooter_id].energy_given_since_scan += 3.0 * power
+
+        for (bot_id, sx, sy, sdir, sspeed, senergy) in ev.scanned:
+            e = self.enemies.get(bot_id)
+            if e is None:
+                e = self.enemies[bot_id] = EnemyModel(x=sx, y=sy)
+            if e.prev_scan_energy is not None:
                 expected = (
-                    self.prev_scan_energy
-                    - self.damage_dealt_since_scan
-                    + self.energy_given_since_scan
+                    e.prev_scan_energy - e.damage_dealt_since_scan + e.energy_given_since_scan
                 )
-                drop = expected - ev.scanned_energy
+                drop = expected - senergy
                 if 0.09 <= drop <= 3.01:
                     self.incoming = IncomingBullet(
-                        origin_x=self.enemy_x,
-                        origin_y=self.enemy_y,
-                        speed=calc_bullet_speed(drop),
-                        power=drop,
-                        fired_turn=self.prev_scan_turn,
+                        origin_x=e.x, origin_y=e.y, speed=calc_bullet_speed(drop),
+                        power=drop, fired_turn=e.prev_scan_turn,
                     )
                     self.enemy_fired_recently = 1.0
-            self.enemy_known = True
-            self.enemy_x = ev.scanned_x
-            self.enemy_y = ev.scanned_y
-            self.enemy_direction = ev.scanned_direction
-            self.enemy_speed = ev.scanned_speed
-            self.prev_scan_energy = ev.scanned_energy
-            self.enemy_energy = ev.scanned_energy
-            self.prev_scan_turn = self.turn
-            self.last_scan_turn = self.turn
-            self.damage_dealt_since_scan = 0.0
-            self.energy_given_since_scan = 0.0
-        elif self.enemy_known:
-            a = math.radians(self.enemy_direction)
-            self.enemy_x = clamp(
-                self.enemy_x + math.cos(a) * self.enemy_speed,
-                BOT_RADIUS, ARENA_WIDTH - BOT_RADIUS,
-            )
-            self.enemy_y = clamp(
-                self.enemy_y + math.sin(a) * self.enemy_speed,
-                BOT_RADIUS, ARENA_HEIGHT - BOT_RADIUS,
-            )
+            e.x, e.y = sx, sy
+            e.direction = sdir
+            e.speed = sspeed
+            e.energy = senergy
+            e.prev_scan_energy = senergy
+            e.prev_scan_turn = self.turn
+            e.last_scan_turn = self.turn
+            e.damage_dealt_since_scan = 0.0
+            e.energy_given_since_scan = 0.0
+            e.scan_history.append((self.turn, sx, sy))
+            if len(e.scan_history) > 3:
+                e.scan_history.pop(0)
+
+        for bot_id, e in list(self.enemies.items()):
+            if self.turn - e.last_scan_turn > ENEMY_ALIVE_LIMIT:
+                del self.enemies[bot_id]
+                continue
+            if e.last_scan_turn != self.turn:
+                a = math.radians(e.direction)
+                e.x = clamp(e.x + math.cos(a) * e.speed, BOT_RADIUS, ARENA_WIDTH - BOT_RADIUS)
+                e.y = clamp(e.y + math.sin(a) * e.speed, BOT_RADIUS, ARENA_HEIGHT - BOT_RADIUS)
+
+        best_id, best_score = None, float("inf")
+        for bot_id, e in self.enemies.items():
+            d = math.hypot(e.x - me.x, e.y - me.y)
+            score = d * (0.75 + 0.25 * clamp(e.energy, 0, 100) / 100.0)
+            if score < best_score:
+                best_id, best_score = bot_id, score
+        self.target_id = best_id
 
         self.enemy_fired_recently *= 0.9
         if self.incoming is not None:
@@ -192,35 +257,78 @@ class Harness:
                 self.incoming = None
 
     def auto_intents(self, me: MyState):
+        in_melee = me.enemy_count > 1
+        if in_melee and self.turn - self._last_sweep_turn > MELEE_SWEEP_INTERVAL:
+            self._last_sweep_turn = self.turn
+            self._sweep_until = self.turn + 8
+
         staleness = self.turn - self.last_scan_turn
-        if not self.enemy_known or staleness > SCAN_STALE_LIMIT:
+        if self.turn < self._sweep_until or not self.enemy_known or staleness > SCAN_STALE_LIMIT:
             radar_rate = MAX_RADAR_TURN_RATE
         else:
             rb = self._bearing_from(me.x, me.y, me.radar_direction, self.enemy_x, self.enemy_y)
             radar_rate = clamp(2.0 * rb, -MAX_RADAR_TURN_RATE, MAX_RADAR_TURN_RATE)
 
-        aim_x, aim_y = self.aim_point(me)
+        gun_hot = me.gun_heat > 0
+        if self._was_gun_hot and not gun_hot:
+            self.current_lead = self.rng.uniform(*GUN_LEAD_RANGE)
+        self._was_gun_hot = gun_hot
+
+        aim_x, aim_y = self.aim_point(me, self.current_lead)
         gb = self._bearing_from(me.x, me.y, me.gun_direction, aim_x, aim_y)
         gun_rate = clamp(gb, -MAX_GUN_TURN_RATE, MAX_GUN_TURN_RATE)
         return gun_rate, radar_rate, False
 
-    def aim_point(self, me: MyState):
+    def _predict_enemy(self, future_turns: float):
+        t_model = self._target()
+        if t_model is None:
+            return self.enemy_x, self.enemy_y
+        h = t_model.scan_history
+        if len(h) < 2:
+            a = math.radians(t_model.direction)
+            return (t_model.x + math.cos(a) * t_model.speed * future_turns,
+                    t_model.y + math.sin(a) * t_model.speed * future_turns)
+        (tb, bx, by), (ta, ax, ay) = h[-2], h[-1]
+        dt_ab = max(ta - tb, 1)
+        vx = (ax - bx) / dt_ab
+        vy = (ay - by) / dt_ab
+        acc_x = acc_y = 0.0
+        if len(h) == 3:
+            (tc, cx, cy) = h[-3]
+            dt_bc = max(tb - tc, 1)
+            if dt_ab <= 60 and dt_bc <= 60:
+                pvx = (bx - cx) / dt_bc
+                pvy = (by - cy) / dt_bc
+                acc_x = (vx - pvx) / dt_ab
+                acc_y = (vy - pvy) / dt_ab
+        t = future_turns + (self.turn - h[-1][0])
+        return (ax + vx * t + 0.5 * acc_x * t * t,
+                ay + vy * t + 0.5 * acc_y * t * t)
+
+    def aim_point(self, me: MyState, lead: float = GUN_LEAD_NOMINAL):
         if not self.enemy_known:
             return self.enemy_x, self.enemy_y
-        distance = math.hypot(self.enemy_x - me.x, self.enemy_y - me.y)
-        power = self._auto_power(distance)
-        bullet_speed = calc_bullet_speed(power)
-        t = distance / bullet_speed
-        a = math.radians(self.enemy_direction)
-        lead_x = self.enemy_x + math.cos(a) * self.enemy_speed * t * GUN_LEAD
-        lead_y = self.enemy_y + math.sin(a) * self.enemy_speed * t * GUN_LEAD
+        fut_x, fut_y = self.enemy_x, self.enemy_y
+        for _ in range(4):
+            distance = math.hypot(fut_x - me.x, fut_y - me.y)
+            power = self.resolve_firepower(FIRE_AUTO, me)
+            t = distance / calc_bullet_speed(power)
+            fut_x, fut_y = self._predict_enemy(t)
+        lead_x = self.enemy_x + (fut_x - self.enemy_x) * lead
+        lead_y = self.enemy_y + (fut_y - self.enemy_y) * lead
         lead_x = clamp(lead_x, BOT_RADIUS, ARENA_WIDTH - BOT_RADIUS)
         lead_y = clamp(lead_y, BOT_RADIUS, ARENA_HEIGHT - BOT_RADIUS)
         return lead_x, lead_y
 
-    @staticmethod
-    def _auto_power(distance: float) -> float:
-        return min(3.0, max(0.5, 500.0 / max(distance, 1.0)))
+    def resolve_firepower(self, fire_option: float, me: MyState) -> float:
+        if fire_option == 0.0:
+            return 0.0
+        if fire_option == FIRE_AUTO:
+            if not self.enemy_known:
+                return 0.0
+            distance = math.hypot(self.enemy_x - me.x, self.enemy_y - me.y)
+            return clamp(450.0 / max(distance, 1.0), 0.15, 3.0)
+        return fire_option
 
     @staticmethod
     def _bearing_from(x, y, heading, tx, ty) -> float:
@@ -294,6 +402,16 @@ class Harness:
                 my_along / 8.0,
                 self.enemy_fired_recently,
                 self.last_firepower / 3.0,
+            ]
+            second_dist = 1.0
+            if len(self.enemies) > 1:
+                dists = sorted(
+                    math.hypot(e.x - me.x, e.y - me.y) for e in self.enemies.values()
+                )
+                second_dist = min(dists[1] / 1000.0, 1.0)
+            obs += [
+                max(me.enemy_count - 1, 0) / 3.0,
+                second_dist if len(self.enemies) > 1 else 1.0,
             ]
 
         return np.asarray(obs, dtype=np.float32)
@@ -433,11 +551,7 @@ class DeployMCTS:
 
 
 def load_policy():
-    """Returns (decide_fn: obs -> action int, config dict).
-
-    Local override for testing: NDRIGGS_MODEL_PATH (+ NDRIGGS_OBS_MODE).
-    Otherwise downloads config + weights from HuggingFace (cached after first boot).
-    """
+    """Returns (decide_fn: obs -> action int, config dict)."""
     local = os.environ.get("NDRIGGS_MODEL_PATH")
     if local:
         config = dict(
@@ -521,23 +635,25 @@ class NdriggsBot(Bot):
         me = MyState(
             x=bs.x, y=bs.y, direction=bs.direction, gun_direction=bs.gun_direction,
             radar_direction=bs.radar_direction, speed=bs.speed, energy=bs.energy,
-            gun_heat=bs.gun_heat,
+            gun_heat=bs.gun_heat, enemy_count=max(bs.enemy_count, 1),
         )
 
         ev = TickEvents()
         for event in e.events:
             if isinstance(event, ScannedBotEvent):
-                ev.scanned_x = event.x
-                ev.scanned_y = event.y
-                ev.scanned_direction = event.direction
-                ev.scanned_speed = event.speed
-                ev.scanned_energy = event.energy
+                ev.scanned.append((
+                    event.scanned_bot_id, event.x, event.y,
+                    event.direction, event.speed, event.energy,
+                ))
             elif isinstance(event, HitByBulletEvent):
-                ev.hit_by_bullets.append(
-                    (event.bullet.power, event.bullet.direction, event.damage)
-                )
+                ev.hit_by_bullets.append((
+                    event.bullet.power, event.bullet.direction, event.damage,
+                    event.bullet.owner_id,
+                ))
             elif isinstance(event, BulletHitBotEvent):
-                ev.my_bullet_hits.append((event.bullet.power, event.damage))
+                ev.my_bullet_hits.append((event.bullet.power, event.damage, event.victim_id))
+            elif isinstance(event, BotDeathEvent):
+                ev.enemies_died.append(event.victim_id)
             elif isinstance(event, HitWallEvent):
                 ev.hit_wall = True
             elif isinstance(event, HitBotEvent):
@@ -564,8 +680,9 @@ class NdriggsBot(Bot):
         self.target_speed = self.target_speed_cmd
         self.gun_turn_rate = gun_rate
         self.radar_turn_rate = radar_rate
-        if self.firepower_cmd > 0:
-            self.set_fire(self.firepower_cmd)
+        resolved_fp = self.harness.resolve_firepower(self.firepower_cmd, me)
+        if resolved_fp > 0:
+            self.set_fire(resolved_fp)
 
 
 if __name__ == "__main__":
