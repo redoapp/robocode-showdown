@@ -275,8 +275,8 @@ class MooseBot extends Bot {
     if (this.targetId < 0 || scannedId === this.targetId) {
       accept = true;
     } else if (this.getEnemyCount() > 1) {
-      const score = distance + e.energy * 4.8 + (e.energy < 10 ? -140 : 0) + (distance < 190 ? -95 : 0);
-      const currentScore = currentDistance + this.targetEnergy * 4.8 + (this.targetEnergy < 10 ? -140 : 0) + (currentDistance < 190 ? -95 : 0);
+      const score = distance + e.energy * 2.5 + (e.energy < 10 ? -180 : 0) + (distance < 190 ? -60 : 0);
+      const currentScore = currentDistance + this.targetEnergy * 2.5 + (this.targetEnergy < 10 ? -180 : 0) + (currentDistance < 190 ? -60 : 0);
       accept = score < currentScore * 0.9 || (e.energy < 7 && distance < 560);
     } else {
       accept = distance < currentDistance * 0.78 || e.energy < this.targetEnergy - 8;
