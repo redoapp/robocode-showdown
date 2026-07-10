@@ -62,7 +62,10 @@ npm run tournament -- draw
   are in by default; the reference bots (`SampleBot`, `SamplePyBot`, `Hunter`)
   aren't flagged and stay out. The draw prints who was skipped.
 - Bots are auto-split into balanced groups of ~4. Each group fights **one melee
-  battle** (its id is just the group letter: `A`, `B`, …).
+  battle** (its id is just the group letter: `A`, `B`, …). The number of groups
+  is always a **power of two** (2, 4, 8, …) so the knockout bracket comes out
+  perfectly balanced with no byes — with more bots the draw grows the groups
+  (up to ~6) rather than adding a fifth group.
 - Need a fill-in to even out a group? `npm run tournament -- draw --include Hunter`
   pulls in a bot that hasn't opted in. `--all` takes every bot regardless of the
   flag, and `--exclude A,B` drops bots even if they opted in.
@@ -130,9 +133,10 @@ npm run tournament -- knockout
 ```
 
 This takes the **top 2 of each group** and seeds a single-elimination bracket,
-crossing groups so no two group-mates meet in the first knockout round. If the
-number of qualifiers isn't a power of two, the manager gives byes to the highest
-seeds automatically.
+crossing groups so no two group-mates meet in the first knockout round. Because
+the draw always makes a power-of-two number of groups, the bracket is full — no
+byes. (Byes only appear if you hand-edit the state into an odd shape; the
+manager then gives them to the highest seeds automatically.)
 
 ## 6. Play the knockout
 
@@ -205,11 +209,10 @@ Flags: `--port 4600`, `--no-open` (don't auto-open a browser), `--state <path>`
 ## Tips for running it live
 
 - Put the GUI on the projector and narrate the battles — it's the fun part.
-- The format scales to however many bots show up: with 14–17 bots it's 4 group
-  melees + 7 knockout matches (~11 battles); 18–21 bots is 5 melees + 9
-  knockout matches; 22 bots is 6 melees + 11. Odd qualifier counts are handled
-  with automatic byes. 10–20 rounds per melee and ~10 per knockout match keeps
-  it moving.
+- The format scales to however many bots show up: anywhere from 12 to 23 bots
+  is 4 group melees (groups of 3–6) + 7 knockout matches — ~11 battles total,
+  and always a full quarter-final bracket with no byes. 10–20 rounds per melee
+  and ~10 per knockout match keeps it moving.
 - Consider the **[Tank Royale Viewer](https://github.com/jandurovec/tank-royale-viewer)**
   for a slicker big-screen display.
 - `tournament-state.json` is your source of truth — back it up if you're paranoid.

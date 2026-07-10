@@ -116,10 +116,22 @@ const letters = (i) => {
   return s;
 };
 
-function buildGroups(bots) {
+// Every group sends exactly 2 qualifiers, so a power-of-two number of groups
+// gives a perfectly balanced knockout bracket with no byes (a bye cascade can
+// otherwise carry one bot untouched all the way to the final). Pick the power
+// of two whose group size lands closest to the ~4 target, never dropping a
+// group below 3 bots (a 2-bot "melee" would qualify both automatically).
+export function numGroupsFor(n) {
+  let best = 1;
+  for (let g = 2; Math.floor(n / g) >= 3; g *= 2) {
+    if (Math.abs(n / g - 4) < Math.abs(n / best - 4)) best = g;
+  }
+  return best;
+}
+
+export function buildGroups(bots) {
   const n = bots.length;
-  // Aim for groups of 4; distribute as evenly as possible (sizes differ by <=1).
-  const numGroups = Math.max(1, Math.round(n / 4));
+  const numGroups = numGroupsFor(n);
   const shuffled = shuffle(bots);
   const groups = Array.from({ length: numGroups }, (_, i) => ({
     name: letters(i),
