@@ -1,0 +1,16 @@
+{
+  "name": "aradford-bot",
+  "version": "1.0",
+  "authors": [
+    "Andrew Radford"
+  ],
+  "description": "Radar lock, predictive lead aim, and range-holding orbital movement.",
+  "platform": "Node.js",
+  "programmingLang": "TypeScript",
+  "gameTypes": [
+    "classic",
+    "1v1",
+    "melee"
+  ],
+  "tournament": true
+}
