@@ -8,35 +8,272 @@ import {
   HitWallEvent,
   ScannedBotEvent,
 } from "@robocode.dev/tank-royale-bot-api";
-import {
-  angleTo,
-  bulletSpeed,
-  distance,
-  guessAngle,
-  losingTheTrade,
-  lowestRiskPoint,
-  normalizeRelative,
-  pickDifferentCombo,
-  pickRandomCombo,
-  predictCircular,
-  predictLinear,
-  selectFirepower,
-  windowComplete,
-  worstLossInField,
-  type EnemySnapshot,
-  type Movement,
-  type Radar,
-  type StrategyCombo,
-} from "./strategy.js";
 
-const TURNS_PER_SECOND = 30; // Tank Royale classic default (game-time, not wall-clock)
-const MIN_STRATEGY_MS = 5000; // hold a combo ~5s of game time before reconsidering...
-const HEALTH_LOSS_FRACTION = 0.2; // ...or until 20% of window-start health is gone
-const STALE_SCAN_TURNS = 8; // treat the primary target as lost after this many turns
-const ENEMY_TTL = 20; // drop an enemy from tracking if unseen this long
-const STOP_GO_PERIOD = 22; // stopAndGo duty-cycle length in turns
-const WANDER_PERIOD = 24; // turns between randomWalk heading re-rolls
-const FINISH_ENERGY = 15; // an enemy this weak is worth chasing for the kill
+// --- Strategy types & constants --------------------------------------------
+
+const MAX_BOT_SPEED = 8;
+
+const MOVEMENTS = [
+  "antiGravity",
+  "orbit",
+  "stopAndGo",
+  "oscillator",
+  "minRisk",
+  "ram",
+  "randomWalk",
+] as const;
+
+const TARGETINGS = [
+  "headOn",
+  "linear",
+  "circular",
+  "guessAngle",
+] as const;
+
+const RADARS = [
+  "spin",
+  "lock",
+  "sweepLock",
+] as const;
+
+type Movement = (typeof MOVEMENTS)[number];
+type Targeting = (typeof TARGETINGS)[number];
+type Radar = (typeof RADARS)[number];
+
+const ROTATION_MOVEMENTS: Movement[] = [
+  "antiGravity",
+  "orbit",
+  "stopAndGo",
+  "oscillator",
+  "minRisk",
+  "randomWalk",
+];
+const ROTATION_RADARS: Radar[] = ["lock", "sweepLock"];
+
+interface StrategyCombo {
+  movement: Movement;
+  targeting: Targeting;
+  radar: Radar;
+}
+
+interface Vec {
+  x: number;
+  y: number;
+}
+
+interface EnemySnapshot {
+  x: number;
+  y: number;
+  direction: number;
+  speed: number;
+}
+
+interface Arena {
+  width: number;
+  height: number;
+}
+
+interface WindowState {
+  elapsedMs: number;
+  myEnergyStart: number;
+  myEnergyNow: number;
+  oppEnergyStart: number;
+  oppEnergyNow: number;
+  scannedThisWindow: boolean;
+}
+
+interface RiskEnemy extends Vec {
+  energy: number;
+}
+
+// --- Strategy helpers ------------------------------------------------------
+
+function pick<T>(list: readonly T[]): T {
+  return list[Math.floor(Math.random() * list.length)] as T;
+}
+
+function pickRandomCombo(): StrategyCombo {
+  return {
+    movement: pick(ROTATION_MOVEMENTS),
+    targeting: pick(TARGETINGS),
+    radar: pick(ROTATION_RADARS),
+  };
+}
+
+function combosEqual(a: StrategyCombo, b: StrategyCombo): boolean {
+  return a.movement === b.movement && a.targeting === b.targeting && a.radar === b.radar;
+}
+
+function pickDifferentCombo(current: StrategyCombo): StrategyCombo {
+  for (let i = 0; i < 10; i++) {
+    const next = pickRandomCombo();
+    if (!combosEqual(next, current)) return next;
+  }
+  return { ...current, movement: pick(ROTATION_MOVEMENTS) };
+}
+
+// --- Geometry helpers ------------------------------------------------------
+
+const DEG = 180 / Math.PI;
+const RAD = Math.PI / 180;
+const BOT_RADIUS = 18;
+
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+function clampToArena(p: Vec, arena: Arena): Vec {
+  return {
+    x: clamp(p.x, BOT_RADIUS, arena.width - BOT_RADIUS),
+    y: clamp(p.y, BOT_RADIUS, arena.height - BOT_RADIUS),
+  };
+}
+
+function angleTo(from: Vec, to: Vec): number {
+  return Math.atan2(to.y - from.y, to.x - from.x) * DEG;
+}
+
+function distance(a: Vec, b: Vec): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function normalizeRelative(angle: number): number {
+  let a = angle % 360;
+  if (a > 180) a -= 360;
+  if (a <= -180) a += 360;
+  return a;
+}
+
+// --- Targeting -------------------------------------------------------------
+
+function selectFirepower(distanceToEnemy: number, energy: number): number {
+  let power =
+    distanceToEnemy < 120
+      ? 3
+      : distanceToEnemy < 300
+        ? 2.4
+        : distanceToEnemy < 500
+          ? 1.6
+          : distanceToEnemy < 750
+            ? 1.1
+            : 0.7;
+  if (energy < 20) power = Math.min(power, 1.2);
+  if (energy < 10) power = Math.min(power, 0.6);
+  if (energy < 4) power = Math.min(power, 0.2);
+  return clamp(power, 0.1, 3);
+}
+
+function bulletSpeed(firepower: number): number {
+  return 20 - 3 * firepower;
+}
+
+function maxEscapeAngleDeg(speedOfBullet: number): number {
+  return Math.asin(clamp(MAX_BOT_SPEED / speedOfBullet, -1, 1)) * DEG;
+}
+
+function predictLinear(shooter: Vec, enemy: EnemySnapshot, speedOfBullet: number, arena: Arena): Vec {
+  const vx = enemy.speed * Math.cos(enemy.direction * RAD);
+  const vy = enemy.speed * Math.sin(enemy.direction * RAD);
+  let aim: Vec = { x: enemy.x, y: enemy.y };
+  for (let i = 0; i < 12; i++) {
+    const t = distance(shooter, aim) / speedOfBullet;
+    aim = clampToArena({ x: enemy.x + vx * t, y: enemy.y + vy * t }, arena);
+  }
+  return aim;
+}
+
+function predictCircular(
+  shooter: Vec,
+  enemy: EnemySnapshot,
+  angularVelocity: number,
+  speedOfBullet: number,
+  arena: Arena,
+): Vec {
+  let heading = enemy.direction;
+  let p: Vec = { x: enemy.x, y: enemy.y };
+  for (let step = 1; step <= 80; step++) {
+    heading += angularVelocity;
+    p = clampToArena(
+      { x: p.x + enemy.speed * Math.cos(heading * RAD), y: p.y + enemy.speed * Math.sin(heading * RAD) },
+      arena,
+    );
+    if (step * speedOfBullet >= distance(shooter, p)) break;
+  }
+  return p;
+}
+
+function guessAngle(shooter: Vec, enemy: EnemySnapshot, speedOfBullet: number): number {
+  const direct = angleTo(shooter, enemy);
+  const vx = enemy.speed * Math.cos(enemy.direction * RAD);
+  const vy = enemy.speed * Math.sin(enemy.direction * RAD);
+  const toEnemyX = enemy.x - shooter.x;
+  const toEnemyY = enemy.y - shooter.y;
+  const lateral = Math.sign(toEnemyX * vy - toEnemyY * vx) || 1;
+  const fraction = 0.35 + Math.random() * 0.65;
+  return direct + lateral * fraction * maxEscapeAngleDeg(speedOfBullet);
+}
+
+// --- Strategy-switching ----------------------------------------------------
+
+function windowComplete(
+  state: Pick<WindowState, "elapsedMs" | "myEnergyStart" | "myEnergyNow">,
+  minMs: number,
+  lossFraction: number,
+): boolean {
+  const lost = state.myEnergyStart - state.myEnergyNow;
+  const lostFraction = state.myEnergyStart > 0 ? lost / state.myEnergyStart : 0;
+  return state.elapsedMs >= minMs || lostFraction >= lossFraction;
+}
+
+function losingTheTrade(state: WindowState): boolean {
+  const myLoss = state.myEnergyStart - state.myEnergyNow;
+  if (!state.scannedThisWindow) return myLoss > 0;
+  const elapsedSec = Math.max(state.elapsedMs / 1000, 1e-3);
+  const myRate = myLoss / elapsedSec;
+  const oppRate = (state.oppEnergyStart - state.oppEnergyNow) / elapsedSec;
+  return myRate > oppRate;
+}
+
+function lowestRiskPoint(me: Vec, enemies: RiskEnemy[], arena: Arena): Vec {
+  const margin = 60;
+  let best: Vec = me;
+  let bestRisk = Infinity;
+  for (let i = 0; i < 16; i++) {
+    const angle = ((i + Math.random()) / 16) * 2 * Math.PI;
+    const reach = 90 + Math.random() * 110;
+    const p: Vec = {
+      x: clamp(me.x + Math.cos(angle) * reach, margin, arena.width - margin),
+      y: clamp(me.y + Math.sin(angle) * reach, margin, arena.height - margin),
+    };
+    let risk = 0;
+    for (const e of enemies) {
+      const d = Math.max(distance(p, e), 30);
+      risk += Math.max(e.energy, 5) / (d * d);
+    }
+    const wallDist = Math.min(p.x, p.y, arena.width - p.x, arena.height - p.y);
+    risk += 0.4 / Math.max(wallDist, 20) + Math.random() * 1e-6;
+    if (risk < bestRisk) {
+      bestRisk = risk;
+      best = p;
+    }
+  }
+  return best;
+}
+
+function worstLossInField(myLossRate: number, enemyLossRates: number[]): boolean {
+  return enemyLossRates.length > 0 && enemyLossRates.every((r) => myLossRate > r);
+}
+
+// --- Bot constants ---------------------------------------------------------
+
+const TURNS_PER_SECOND = 30;
+const MIN_STRATEGY_MS = 5000;
+const HEALTH_LOSS_FRACTION = 0.2;
+const STALE_SCAN_TURNS = 8;
+const ENEMY_TTL = 20;
+const STOP_GO_PERIOD = 22;
+const WANDER_PERIOD = 24;
+const FINISH_ENERGY = 15;
 const START_ENERGY = 100;
 
 type Posture = "engage" | "skirmish" | "retreat";
@@ -49,8 +286,6 @@ interface Scan extends EnemySnapshot {
   prevTurn: number | null;
 }
 
-/** Adaptive bot: independent move/shoot/scan modules; reboots into a new random
- *  combo when losing. Duel mode + a minimum-risk melee mode with engage postures. */
 class SophieBot extends Bot {
   private combo: StrategyCombo = pickRandomCombo();
   private posture: Posture = "skirmish";
@@ -164,8 +399,6 @@ class SophieBot extends Bot {
     return this.focusFired;
   }
 
-  // --- Melee posture: go in, skirmish, or hang back ---------------------------
-
   private computePosture(): Posture {
     const enemies = this.livingEnemies();
     if (enemies.length === 0) return "skirmish";
@@ -180,8 +413,6 @@ class SophieBot extends Bot {
     if (this.focusFired || myEnergy < 0.6 * avg) return "retreat";
     return "skirmish";
   }
-
-  // --- Enemy tracking + target selection -------------------------------------
 
   private livingEnemies(): Scan[] {
     const cutoff = this.getTurnNumber() - ENEMY_TTL;
@@ -207,8 +438,6 @@ class SophieBot extends Bot {
     return enemies.reduce((a, b) => (distance(me, b) < distance(me, a) ? b : a));
   }
 
-  // --- Radar -----------------------------------------------------------------
-
   private driveRadar() {
     const primary = this.primaryTarget();
     const stale = primary === null || this.getTurnNumber() - primary.turn > STALE_SCAN_TURNS;
@@ -225,8 +454,6 @@ class SophieBot extends Bot {
     }
   }
 
-  // --- Gun -------------------------------------------------------------------
-
   private driveGun() {
     const primary = this.primaryTarget();
     if (primary === null) {
@@ -241,7 +468,7 @@ class SophieBot extends Bot {
     if (this.isMelee()) {
       const cap = this.posture === "engage" ? 3 : this.posture === "retreat" ? 1.5 : 2.4;
       power = Math.min(power, cap);
-      if (dist > 600 && this.posture !== "engage") mayFire = false; // don't spray at range — accurate fire only
+      if (dist > 600 && this.posture !== "engage") mayFire = false;
     }
     const aim = this.computeAimAngle(primary, power, me);
 
@@ -280,8 +507,6 @@ class SophieBot extends Bot {
     if (dt <= 0 || dt > 5) return 0;
     return normalizeRelative(target.direction - target.prevDirection) / dt;
   }
-
-  // --- Body movement ---------------------------------------------------------
 
   private driveBody() {
     const intent = this.isMelee() ? this.meleeMoveIntent() : this.duelMoveIntent();
@@ -442,8 +667,6 @@ class SophieBot extends Bot {
     this.setTargetSpeed(sp);
   }
 
-  // --- Events ----------------------------------------------------------------
-
   override onScannedBot(e: ScannedBotEvent) {
     const old = this.enemies.get(e.scannedBotId);
     this.enemies.set(e.scannedBotId, {
@@ -464,9 +687,9 @@ class SophieBot extends Bot {
   private maybeDodge(old: Scan | undefined, e: ScannedBotEvent) {
     if (old === undefined || this.getTurnNumber() < this.dodgeCooldownUntil) return;
     const drop = old.energy - e.energy;
-    if (drop < 0.1 || drop > 3.0) return; // an enemy energy drop of 0.1-3.0 means they just fired
+    if (drop < 0.1 || drop > 3.0) return;
     if (distance({ x: this.getX(), y: this.getY() }, { x: e.x, y: e.y }) > 500) return;
-    this.orbitDir = (this.orbitDir * -1) as 1 | -1; // reverse our strafe as the shot is committed
+    this.orbitDir = (this.orbitDir * -1) as 1 | -1;
     this.dodgeCooldownUntil = this.getTurnNumber() + 8;
   }
 
