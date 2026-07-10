@@ -8,6 +8,7 @@ import {
 } from "@robocode.dev/tank-royale-bot-api";
 
 type Point = { x: number; y: number };
+type EnemyInfo = Point & { id: number; energy: number; direction: number; speed: number; turnRate: number; seen: number };
 
 class MooseBot extends Bot {
   private static readonly MELEE_SPECIALIST = false;
@@ -37,6 +38,9 @@ class MooseBot extends Bot {
   private reversalClock = 0;
   private nextReversalAt = MooseBot.REVERSAL_MIN + Math.floor(MooseBot.REVERSAL_SPAN / 2);
   private randomState = 2685821657736378312;
+  private enemies = new Map<number, EnemyInfo>();
+  private meleeDestination: Point = { x: 400, y: 300 };
+  private meleePlanTurn = -100;
 
   static main() {
     new MooseBot().start();
@@ -62,6 +66,11 @@ class MooseBot extends Bot {
   }
 
   private drive(hasTarget: boolean) {
+    if (this.getEnemyCount() > 1) {
+      this.driveMeleeDestination();
+      return;
+    }
+
     if (!hasTarget) {
       this.setTargetSpeed(MooseBot.MELEE_SPECIALIST ? 8 : 7);
       this.setTurnRate((MooseBot.MELEE_SPECIALIST ? 8 : 7) * this.orbitDirection);
@@ -113,6 +122,52 @@ class MooseBot extends Bot {
       speed = 3.2;
     }
     this.setTargetSpeed(Math.abs(turn) > 76 ? Math.min(speed, 4.8) : speed);
+  }
+
+  private driveMeleeDestination() {
+    const enemies = [...this.enemies.values()].filter((enemy) => this.getTurnNumber() - enemy.seen <= 45);
+    if (enemies.length === 0) {
+      this.setTurnRate(8 * this.orbitDirection);
+      this.setTargetSpeed(8);
+      return;
+    }
+    if (this.getTurnNumber() - this.meleePlanTurn >= 10 || this.distanceTo(this.meleeDestination.x, this.meleeDestination.y) < 48) {
+      this.planMeleeDestination(enemies);
+      this.meleePlanTurn = this.getTurnNumber();
+    }
+    const heading = this.directionTo(this.meleeDestination.x, this.meleeDestination.y);
+    const turn = this.normalizeRelativeAngle(heading - this.getDirection());
+    this.setTurnRate(turn);
+    this.setTargetSpeed(Math.abs(turn) > 90 ? -8 : 8);
+  }
+
+  private planMeleeDestination(enemies: EnemyInfo[]) {
+    const margin = 72;
+    const base = Number(this.nextRandom() % 360n);
+    let bestRisk = Number.POSITIVE_INFINITY;
+    let best = this.meleeDestination;
+    for (let i = 0; i < 24; i++) {
+      const angle = base + i * 15;
+      const radius = 145 + Number(this.nextRandom() % 130n);
+      const x = this.clamp(this.getX() + Math.sin(this.toRadians(angle)) * radius, margin, this.getArenaWidth() - margin);
+      const y = this.clamp(this.getY() + Math.cos(this.toRadians(angle)) * radius, margin, this.getArenaHeight() - margin);
+      let risk = 0;
+      for (const enemy of enemies) {
+        const d2 = Math.max(900, (x - enemy.x) ** 2 + (y - enemy.y) ** 2);
+        risk += (enemy.energy + 80) / d2;
+        if (d2 < 170 ** 2) risk += (170 ** 2 - d2) / 180000;
+        if (enemy.energy < 10) risk -= 28 / d2;
+      }
+      const wallDistance = Math.min(x, y, this.getArenaWidth() - x, this.getArenaHeight() - y);
+      risk += 10 / Math.max(20, wallDistance) ** 2;
+      const centerD2 = (x - this.getArenaWidth() / 2) ** 2 + (y - this.getArenaHeight() / 2) ** 2;
+      risk += 14 / Math.max(10000, centerD2);
+      if (risk < bestRisk) {
+        bestRisk = risk;
+        best = { x, y };
+      }
+    }
+    this.meleeDestination = best;
   }
 
   private shouldStopGoReverse() {
@@ -270,6 +325,10 @@ class MooseBot extends Bot {
   override onScannedBot(e: ScannedBotEvent) {
     const scannedId = e.scannedBotId;
     const distance = this.distanceTo(e.x, e.y);
+    const old = this.enemies.get(scannedId);
+    const elapsed = old ? Math.max(1, this.getTurnNumber() - old.seen) : 1;
+    const turnRate = old ? this.normalizeRelativeAngle(e.direction - old.direction) / elapsed : 0;
+    this.enemies.set(scannedId, { id: scannedId, x: e.x, y: e.y, energy: e.energy, direction: e.direction, speed: e.speed, turnRate, seen: this.getTurnNumber() });
     const currentDistance = this.targetId < 0 ? Number.POSITIVE_INFINITY : this.distanceTo(this.targetX, this.targetY);
     let accept: boolean;
     if (this.targetId < 0 || scannedId === this.targetId) {
@@ -306,6 +365,7 @@ class MooseBot extends Bot {
   }
 
   override onBotDeath(e: BotDeathEvent) {
+    this.enemies.delete(e.victimId);
     if (e.victimId === this.targetId) {
       this.targetId = -1;
       this.targetAge = 999;
