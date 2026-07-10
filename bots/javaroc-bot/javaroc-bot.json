@@ -1,0 +1,15 @@
+{
+  "name": "javaroc-bot",
+  "version": "1.0",
+  "authors": [
+    "Javaroc"
+  ],
+  "description": "javaroc-bot — a Robocode Tank Royale bot.",
+  "platform": "Node.js",
+  "programmingLang": "TypeScript",
+  "gameTypes": [
+    "classic",
+    "1v1",
+    "melee"
+  ]
+}
