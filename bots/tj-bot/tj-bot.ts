@@ -50,7 +50,7 @@ interface Wave {
   mode: number; // fallback dodge mode used on this wave (-1 = none yet)
 }
 
-/** A bullet we fired at the enemy (for GuessFactor learning). */
+/** A wave for GuessFactor learning — real bullets weigh more than virtual. */
 interface GunWave {
   ox: number;
   oy: number;
@@ -60,6 +60,7 @@ interface GunWave {
   maxEscape: number;
   latDir: 1 | -1; // enemy lateral direction sign at fire time
   segment: number;
+  weight: number; // 5 = real bullet, 1 = virtual (every-turn training)
 }
 
 interface PendingShot {
@@ -67,6 +68,7 @@ interface PendingShot {
   factorIdx: number;
   countsForStats: boolean;
   isNearMiss: boolean;
+  isProbe: boolean;
   resolved: boolean;
   hit: boolean;
 }
@@ -85,6 +87,7 @@ class TjBot extends Bot {
   private surfStats: number[][] = []; // 3 segments x BINS, hits on us
   private modeShots = [0, 0]; // dodge-mode bandit: 0 = ray-dodge, 1 = random
   private modeHits = [0, 0];
+  private recentResults: number[] = []; // rolling real-shot outcomes (1/0)
 
   private history: Snapshot[] = [];
   private waves: Wave[] = [];
@@ -122,7 +125,15 @@ class TjBot extends Bot {
   constructor() {
     super();
     for (let s = 0; s < 9; s++) this.gunGF.push(new Array(BINS).fill(0));
-    for (let s = 0; s < 3; s++) this.surfStats.push(new Array(BINS).fill(0));
+    for (let s = 0; s < 3; s++) {
+      // Seed the surf danger with the classic gun archetypes so we surf
+      // intelligently from the very first wave instead of cold-starting.
+      const buf = new Array(BINS).fill(0);
+      buf[MID] += 1.2; // head-on
+      buf[BINS - 1] += 0.7; // full linear lead
+      buf[Math.round(0.75 * (BINS - 1))] += 0.35; // half lead
+      this.surfStats.push(buf);
+    }
   }
 
   static main() {
@@ -261,9 +272,9 @@ class TjBot extends Bot {
     }
     if (bestIdx >= 0) {
       const w = this.waves[bestIdx];
-      // Rolling decay: their gun adapts, so old hit locations go stale fast.
+      // Rolling decay: recent hits matter most, but knowledge must persist.
       const buf = this.surfStats[w.segment];
-      for (let b = 0; b < BINS; b++) buf[b] *= 0.78;
+      for (let b = 0; b < BINS; b++) buf[b] *= 0.9;
       buf[this.binFor(w, mx, my)] += 1;
       if (w.mode >= 0) {
         this.modeShots[w.mode]++;
@@ -281,7 +292,13 @@ class TjBot extends Bot {
       shot.resolved = true;
       shot.hit = true;
       if (shot.countsForStats) this.factorHits[shot.factorIdx]++;
+      if (!shot.isProbe) this.recordShotResult(1);
     }
+  }
+
+  private recordShotResult(hit: number) {
+    this.recentResults.push(hit);
+    if (this.recentResults.length > 20) this.recentResults.shift();
   }
 
   override onHitBot(e: HitBotEvent) {
@@ -376,7 +393,9 @@ class TjBot extends Bot {
         this.driveOrbit(en, this.orbitDir, 0);
       } else {
         this.orbitDir = bestChoice as 1 | -1;
-        this.driveOrbit(en, this.orbitDir, 8);
+        // Speed jitter: never hold identical speed two scans running —
+        // stability-gated guns (axiom) wait for exactly that to fire.
+        this.driveOrbit(en, this.orbitDir, 7.2 + Math.random() * 0.8);
       }
       return;
     }
@@ -428,6 +447,8 @@ class TjBot extends Bot {
     ) {
       this.orbitDir = this.orbitDir === 1 ? -1 : 1;
     }
+    // Between volleys, keep the speed unstable so fire-gated guns stay shut.
+    if (this.waves.length === 0) this.setMaxSpeed(6 + Math.random() * 2);
 
     this.driveOrbit(en, this.orbitDir, -1);
   }
@@ -727,7 +748,27 @@ class TjBot extends Bot {
       if (!s.resolved && turn > s.expectedHitTurn) {
         s.resolved = true;
         if (!s.isNearMiss) this.gunPhase = "SPAM";
+        if (!s.isProbe && !s.isNearMiss) this.recordShotResult(0);
       }
+    }
+
+    // Virtual training wave EVERY turn the scan is fresh, firing or not —
+    // the gun studies constantly instead of one lesson per bullet.
+    if (turn - this.lastScanTurn <= 1) {
+      const vDirect = this.directionTo(en.x, en.y);
+      const vLatVel = en.speed * Math.sin((en.direction - vDirect) * DEG);
+      const vSpeed = 20 - 3 * Math.max(0.5, this.choosePower(dist));
+      this.gunWaves.push({
+        ox: this.getX(),
+        oy: this.getY(),
+        speed: vSpeed,
+        fireTurn: turn,
+        directAngle: vDirect,
+        maxEscape: Math.asin(Math.min(1, 8 / vSpeed)) * RAD,
+        latDir: vLatVel >= 0 ? 1 : -1,
+        segment: this.gunSeg(dist, Math.abs(vLatVel)),
+        weight: 1,
+      });
     }
 
     if (this.gunPhase === "HOLD") return;
@@ -748,18 +789,31 @@ class TjBot extends Bot {
     const bulletSpeed = 20 - 3 * power;
     const maxEscape = Math.asin(Math.min(1, 8 / bulletSpeed)) * RAD;
 
-    // GuessFactor aim when we have data; else probe scatter / circular+bandit.
+    // GuessFactor aim when we have data; else priors / circular+bandit.
     let aimDir: number;
     let factorIdx = 0;
     let usedGF = false;
+    let usedPrior = false;
     if (probing) {
-      // Uniform scatter across their reachable escape angles.
-      aimDir = directAngle + (Math.random() * 2 - 1) * maxEscape * latDir;
+      if (Math.abs(latVel) > 1) {
+        // Moving target with a cold histogram: probe the negative-GF zone —
+        // seeded surfers dodge the classic (positive) leads and back into it.
+        const gf = -0.65 + Math.random() * 0.5;
+        aimDir = directAngle + gf * maxEscape * latDir;
+      } else {
+        // Stationary: uniform scatter.
+        aimDir = directAngle + (Math.random() * 2 - 1) * maxEscape * latDir;
+      }
     } else if (this.hasData(this.gunGF[seg])) {
       const bin = this.bestBin(this.gunGF[seg]);
       const factor = (bin / (BINS - 1)) * 2 - 1;
       aimDir = directAngle + factor * maxEscape * latDir;
       usedGF = true;
+    } else if (Math.abs(latVel) > 2) {
+      // No data yet on a laterally-moving target: negative-GF prior beats
+      // both seeded surfers and plain orbiters more often than full lead.
+      aimDir = directAngle - 0.55 * maxEscape * latDir;
+      usedPrior = true;
     } else {
       if (this.gunPhase === "SPAM") factorIdx = this.pickLeadFactor();
       const predicted = this.predictPosition(bulletSpeed);
@@ -779,7 +833,8 @@ class TjBot extends Bot {
     const firePower = power;
     if (this.setFire(firePower)) {
       const isNearMiss = false;
-      const countsForStats = this.gunPhase === "SPAM" && !usedGF && !probing;
+      const countsForStats =
+        this.gunPhase === "SPAM" && !usedGF && !probing && !usedPrior;
       if (countsForStats) this.factorShots[factorIdx]++;
       const fireSpeed = 20 - 3 * firePower;
       this.gunWaves.push({
@@ -791,12 +846,14 @@ class TjBot extends Bot {
         maxEscape: Math.asin(Math.min(1, 8 / fireSpeed)) * RAD,
         latDir,
         segment: this.gunSeg(dist, Math.abs(latVel)),
+        weight: 5,
       });
       this.pending.push({
         expectedHitTurn: turn + Math.ceil(dist / fireSpeed) + 10,
         factorIdx,
         countsForStats,
         isNearMiss,
+        isProbe: probing,
         resolved: false,
         hit: false,
       });
@@ -890,10 +947,12 @@ class TjBot extends Bot {
         );
         const bin = Math.round(((factor + 1) / 2) * (BINS - 1));
         const buf = this.gunGF[w.segment];
-        // Rolling update: recent behavior dominates (tracks adaptive dodgers).
-        const decay = 1 - 1 / 32;
+        // Weighted rolling update: real bullets teach 5x harder than virtual
+        // waves, and decay scales with weight so the firehose doesn't flush
+        // the histogram.
+        const decay = 1 - w.weight / 110;
         for (let b = 0; b < BINS; b++) buf[b] *= decay;
-        buf[bin] += 1;
+        buf[bin] += w.weight;
         this.gunWaves.splice(i, 1);
       } else if (t - w.fireTurn > 150) {
         this.gunWaves.splice(i, 1);
@@ -924,6 +983,24 @@ class TjBot extends Bot {
     const energy = this.getEnergy();
     if (energy < 1) return 0;
     let power = dist < 150 ? 3 : dist < 400 ? 2.0 : 1.5;
+    // Attrition discipline: when we're not connecting, cheaper faster
+    // bullets win the energy war (and are harder to surf).
+    const n = this.recentResults.length;
+    if (n >= 8) {
+      const rate = this.recentResults.reduce((a, b) => a + b, 0) / n;
+      if (dist > 220 && rate < 0.25) power = Math.min(power, 1.5);
+      if (dist > 220 && rate < 0.12) power = Math.min(power, 1.1);
+      // Vampire mode: above ~33% hit rate every shot is energy-POSITIVE
+      // (hits refund 3x power) — so when the gun is locked in, go heavy.
+      if (rate > 0.45 && dist < 500 && energy > 20) {
+        power = Math.max(power, 2.6);
+      }
+    }
+    // A cornered duel opponent has no dodge room: heavy shots are near-free.
+    const en = this.history[this.history.length - 1];
+    if (en && this.isCornered(en) && energy > 15) {
+      power = Math.max(power, dist < 300 ? 3 : 2.2);
+    }
     if (energy < 15) power = Math.min(power, 1);
     if (energy < 5) power = Math.min(power, 0.5);
     return Math.min(power, Math.max(0.1, energy - 0.5));
