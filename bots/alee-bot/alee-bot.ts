@@ -121,6 +121,7 @@ class AleeBot extends Bot {
       speed: event.speed,
     }, GUESS_FACTOR_BINS, self);
     this.diagnostics.inferredEnemyWaves += update.inferredEnemyWaves.length;
+    for (const wave of update.inferredEnemyWaves) this.movement.observeEnemyFire(wave);
 
     for (const outcome of update.resolvedWaves) {
       this.gun.observeOutcome(outcome);

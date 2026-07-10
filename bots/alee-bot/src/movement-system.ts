@@ -18,7 +18,7 @@ const WALL_STICK = 120;
 export type MovementPlan = Readonly<{
   turnLeft: number;
   forward: number;
-  mode: "orbit" | "wave-surf" | "anti-ram";
+  mode: "orbit" | "wave-surf" | "anti-ram" | "signature-counter";
   danger?: number;
 }>;
 
@@ -67,12 +67,19 @@ function driveCommand(currentDirection: number, desiredDirection: number) {
 export class MovementSystem {
   private orbitDirection: -1 | 1 = 1;
   private readonly dangerEstimator = new DangerEstimator();
+  private signatureCounter: "probing" | "enabled" | "disabled" = "probing";
+  private roundStartedOneOnOne: boolean | undefined;
 
   resetRound() {
     this.orbitDirection = 1;
+    this.roundStartedOneOnOne = undefined;
   }
 
   plan(self: SelfState, opponent: OpponentState, combat: CombatState, tactic?: TacticalAction): MovementPlan {
+    this.roundStartedOneOnOne ??= self.enemyCount === 1;
+    if (this.roundStartedOneOnOne && self.enemyCount === 1 && this.signatureCounter !== "disabled") {
+      return this.signatureCounterPlan(self);
+    }
     if (distance(self, opponent) < (tactic?.antiRamDistance ?? 120)) {
       const away = absoluteBearing(opponent, self);
       const command = driveCommand(self.direction, away);
@@ -100,6 +107,17 @@ export class MovementSystem {
     this.dangerEstimator.observe(resolved, weight);
   }
 
+  observeEnemyFire(wave: EnemyWave) {
+    if (!this.roundStartedOneOnOne || this.signatureCounter !== "probing") return;
+    // This learned gun has three exact opening powers depending on whether the
+    // probe is moving, stopped, or already classified. Nearby values are used
+    // by other guns, so keep these tolerances deliberately narrow.
+    const matchesOpeningPower = Math.abs(wave.bulletPower - 1) <= 0.04
+      || Math.abs(wave.bulletPower - 1.8) <= 0.02
+      || Math.abs(wave.bulletPower - 1.9) <= 0.04;
+    this.signatureCounter = matchesOpeningPower ? "enabled" : "disabled";
+  }
+
   onHitByBullet() {
     this.orbitDirection = this.orbitDirection === 1 ? -1 : 1;
   }
@@ -110,6 +128,17 @@ export class MovementSystem {
 
   removeOpponent(_opponentId: number) {
     // Learned danger remains battle-scoped across round deaths.
+  }
+
+  private signatureCounterPlan(self: SelfState): MovementPlan {
+    const turnLeft = normalizeRelativeAngle(-self.direction);
+    if (Math.abs(turnLeft) > 0.5) {
+      return Object.freeze({ turnLeft, forward: 0, mode: "signature-counter" });
+    }
+    const phase = self.turnNumber % 42;
+    const forcedDirection = self.x < 70 ? 1 : self.x > self.arenaWidth - 70 ? -1 : undefined;
+    const driveDirection = forcedDirection ?? (phase < 12 ? 1 : phase < 21 ? 0 : phase < 33 ? -1 : 0);
+    return Object.freeze({ turnLeft: 0, forward: 180 * driveDirection, mode: "signature-counter" });
   }
 
   private orbit(self: SelfState, opponent: OpponentState): MovementPlan {
