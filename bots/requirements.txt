@@ -2,3 +2,8 @@
 # Installed into bots/.venv by `npm run setup:python` (the .sh/.cmd boot
 # scripts look for ../.venv/bin/python).
 robocode-tank-royale>=1.0.2
+
+# ndriggs-bot: neural-network policy inference + weight download
+torch>=2.2
+numpy>=1.24
+huggingface_hub>=0.23
