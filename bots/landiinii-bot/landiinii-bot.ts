@@ -92,17 +92,14 @@ class LandiiniiBot extends Bot {
     const arenaW = this.getArenaWidth();
     const arenaH = this.getArenaHeight();
 
-    // --- WAVE DODGE: react to the enemy firing -------------------------
+    // --- EVASION: react to the enemy firing ----------------------------
+    // On a detected shot, reverse and re-roll our next reversal + speed so the
+    // enemy's gun can never settle on a constant lateral velocity to lead.
     const drop = this.lastEnemyEnergy - e.energy;
-    if (drop >= 0.09 && drop <= 3.01) {
-      this.moveDirection = -this.moveDirection;
-      this.nextFlip = this.tick + 15 + Math.floor(Math.random() * 25);
-    }
+    const enemyFired = drop >= 0.09 && drop <= 3.01;
+    if (enemyFired) this.reroll();
     this.lastEnemyEnergy = e.energy;
-    if (this.tick >= this.nextFlip) {
-      this.moveDirection = -this.moveDirection;
-      this.nextFlip = this.tick + 15 + Math.floor(Math.random() * 30);
-    }
+    if (this.tick >= this.nextFlip) this.reroll();
 
     // --- RADAR LOCK ----------------------------------------------------
     const radarBearing = this.radarBearingTo(e.x, e.y);
@@ -112,23 +109,29 @@ class LandiiniiBot extends Bot {
     const firepower = this.firepowerFor(distance);
     this.aimAndFire(e, firepower, distance, arenaW, arenaH);
 
-    // --- ORBITAL STRAFE with wall smoothing ----------------------------
+    // --- EVASIVE ORBIT with wall smoothing -----------------------------
     const absBearingToEnemy = this.norm360(
       Math.atan2(e.y - myY, e.x - myX) / DEG
     );
-    const preferred = 360;
+    const preferred = 300;
     let perp = 90;
-    if (distance > preferred + 120) perp = 74;
-    else if (distance < preferred - 60) perp = 106;
+    if (distance > preferred + 120) perp = 76;
+    else if (distance < preferred - 60) perp = 104;
 
-    const jitter = 15 * Math.sin(this.tick / 5);
-    let driveHeading = this.norm360(
-      absBearingToEnemy + this.moveDirection * (perp + jitter)
-    );
+    let driveHeading = this.norm360(absBearingToEnemy + this.moveDirection * perp);
     driveHeading = this.smoothWall(myX, myY, driveHeading, arenaW, arenaH);
 
+    this.setMaxSpeed(this.strafeSpeed);
     this.setTurnRight(this.calcBearing(driveHeading));
     this.setForward(100);
+  }
+
+  // Re-roll the strafe: flip direction, pick a fresh random reversal interval
+  // and a randomized max speed so our motion never stays linear.
+  private reroll() {
+    this.moveDirection = -this.moveDirection;
+    this.nextFlip = this.tick + 8 + Math.floor(Math.random() * 22);
+    this.strafeSpeed = 5 + Math.random() * 3; // 5..8
   }
 
   // ===================== MELEE =====================
