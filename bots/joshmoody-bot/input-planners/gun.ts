@@ -1,7 +1,7 @@
-import { Context } from "../context";
-import { targetedEnemy } from "../enemy";
-import { botVec, distance, inferredPosition, Vector } from "../geometry";
-import { InputPlanner } from "../input";
+import type { Context } from "../context.ts";
+import { targetedEnemy } from "../enemy.ts";
+import { botVec, distance, inferredPosition, type Vector } from "../geometry.ts";
+import type { InputPlanner } from "../input.ts";
 
 const LAST_SEEN_THRESHOLD = 10;
 const PREDICTION_ITERATIONS = 10;
@@ -54,10 +54,14 @@ export const createGunPlanner: () => InputPlanner = () => {
       const turnsToTarget = distanceToTarget / bulletSpeed;
       futurePos = inferredPosition(enemy, turnsToTarget) ?? futurePos;
     }
-    const directValue = context.self.gunBearingTo(enemyPos.x, enemyPos.y);
-    const predictedValue = context.self.gunBearingTo(futurePos.x, futurePos.y);
+    const direct = context.self.gunBearingTo(enemyPos.x, enemyPos.y);
+    const predicted = context.self.gunBearingTo(futurePos.x, futurePos.y);
 
-    const value = directValue + Math.random() * (predictedValue - directValue);
+    const value = herp({
+      direct,
+      predicted,
+      distance: distance(botVec(context.self), futurePos),
+    });
 
     if (canShoot(context) && withinAimTolerance(context, futurePos)) {
       context.self.setFire(power);
@@ -69,6 +73,22 @@ export const createGunPlanner: () => InputPlanner = () => {
     };
   };
 };
+
+const lerp = (start: number, end: number, amt: number) =>
+  (1 - amt) * start + amt * end;
+
+// heuristically interpolate
+function herp({
+  direct,
+  predicted,
+  distance,
+}: {
+  direct: number;
+  predicted: number;
+  distance: number;
+}) {
+  return lerp(predicted, direct, Math.sqrt(Math.random()));
+}
 
 function bulletPower(distance: number) {
   if (distance < BULLET_POWER_DISTANCE.MAX) {

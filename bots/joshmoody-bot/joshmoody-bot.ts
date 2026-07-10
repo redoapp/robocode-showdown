@@ -4,8 +4,8 @@ import {
   HitByBulletEvent,
   ScannedBotEvent,
 } from "@robocode.dev/tank-royale-bot-api";
-import { Context, initContext } from "./context";
-import { dequeueInputs, enqueueInputs } from "./input";
+import { type Context, initContext } from "./context.ts";
+import { dequeueInputs, enqueueInputs } from "./input.ts";
 
 const ENEMY_HISTORY_LENGTH = 5;
 const ENEMY_HISTORY_MAX_AGE = 200;

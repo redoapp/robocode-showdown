@@ -1,7 +1,7 @@
-import { Context } from "../context";
-import { targetedEnemy } from "../enemy";
-import { botVec, squareV, subtractV, Vector } from "../geometry";
-import { InputPlanner } from "../input";
+import type { Context } from "../context.ts";
+import { targetedEnemy } from "../enemy.ts";
+import { botVec, squareV, subtractV, type Vector } from "../geometry.ts";
+import type { InputPlanner } from "../input.ts";
 
 const REPOSITION_TURNS = 100;
 const REPOSITION_TURNS_ALLOTTED = 70;

@@ -1,8 +1,8 @@
 import { Color } from "@robocode.dev/tank-royale-bot-api";
-import { Context } from "../context";
-import { targetedEnemy } from "../enemy";
-import { botVec } from "../geometry";
-import { InputPlanner } from "../input";
+import type { Context } from "../context.ts";
+import { targetedEnemy } from "../enemy.ts";
+import { botVec } from "../geometry.ts";
+import type { InputPlanner } from "../input.ts";
 
 const FULL_SCAN_RATE_TURNS = 150;
 const FUTURE_TURNS = 5;
