@@ -1,0 +1,15 @@
+{
+  "name": "coleman-bot",
+  "version": "1.0",
+  "authors": [
+    "Coleman Dunn"
+  ],
+  "description": "Adaptive ensemble targeting with stable commitment, periodic radar refresh, and evasive movement.",
+  "platform": "Node.js",
+  "programmingLang": "TypeScript",
+  "gameTypes": [
+    "classic",
+    "1v1",
+    "melee"
+  ]
+}
