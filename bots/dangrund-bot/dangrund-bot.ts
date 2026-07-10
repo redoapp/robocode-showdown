@@ -1,5 +1,6 @@
 import {
   Bot,
+  BotDeathEvent,
   BulletFiredEvent,
   BulletHitBotEvent,
   HitBotEvent,
@@ -42,6 +43,17 @@ interface EnemyWave {
   directBearing: number;
   lateralDirection: number;
   maxEscapeAngle: number;
+}
+
+interface MeleeEnemy {
+  id: number;
+  x: number;
+  y: number;
+  energy: number;
+  direction: number;
+  speed: number;
+  turnRate: number;
+  seenTurn: number;
 }
 
 const normalizeBearing = (angle: number) => {
@@ -95,6 +107,11 @@ class DangrundBot extends Bot {
   private surfBearings: number[] = [];
   private enemyWaves: EnemyWave[] = [];
   private surfStats = Array.from({ length: SURF_BINS }, () => 0);
+  private meleeMode = false;
+  private meleeEnemies = new Map<number, MeleeEnemy>();
+  private meleeDestinationX = 400;
+  private meleeDestinationY = 300;
+  private meleePlanTurn = -100;
 
   static main() {
     new DangrundBot().start();
@@ -106,11 +123,23 @@ class DangrundBot extends Bot {
     this.setAdjustRadarForGunTurn(true);
 
     while (this.isRunning()) {
-      this.turnRadarRight(360);
+      if (this.getEnemyCount() > 1 || this.meleeMode) {
+        this.meleeMode = true;
+        this.runMeleeTurn();
+        this.go();
+      } else {
+        this.turnRadarRight(360);
+      }
     }
   }
 
   override onScannedBot(event: ScannedBotEvent) {
+    if (this.getEnemyCount() > 1 || this.meleeMode) {
+      this.meleeMode = true;
+      this.recordMeleeScan(event);
+      return;
+    }
+
     this.updateGunWaves(event);
     this.trackEnemyFire(event);
     this.updateEnemyWaves(event.turnNumber);
@@ -140,16 +169,26 @@ class DangrundBot extends Bot {
 
   override onHitByBullet(event: HitByBulletEvent) {
     this.hitsTaken += 1;
+    if (this.meleeMode) {
+      this.meleePlanTurn = -100;
+      return;
+    }
     this.recordSurfHit(event);
     if (!this.isAdvancedTarget()) this.reverseDirection(event.turnNumber);
   }
 
   override onHitWall(event: HitWallEvent) {
+    if (this.meleeMode) {
+      this.meleePlanTurn = -100;
+      this.meleeDestinationX = this.getArenaWidth() / 2;
+      this.meleeDestinationY = this.getArenaHeight() / 2;
+    }
     this.reverseDirection(event.turnNumber);
     this.setForward(160 * this.moveDirection);
   }
 
   override onHitBot(_event: HitBotEvent) {
+    if (this.meleeMode) this.meleePlanTurn = -100;
     this.setForward(120 * this.moveDirection);
   }
 
@@ -160,7 +199,16 @@ class DangrundBot extends Bot {
 
   override onBulletHitBot(event: BulletHitBotEvent) {
     this.hits += 1;
+    if (this.meleeMode) {
+      const enemy = this.meleeEnemies.get(event.victimId);
+      if (enemy !== undefined) enemy.energy = event.energy;
+      return;
+    }
     this.previousEnemyEnergy = event.energy;
+  }
+
+  override onBotDeath(event: BotDeathEvent) {
+    this.meleeEnemies.delete(event.victimId);
   }
 
   override onRoundEnded(_event: RoundEndedEvent) {
@@ -186,6 +234,11 @@ class DangrundBot extends Bot {
     this.surfDirections = [];
     this.surfBearings = [];
     this.enemyWaves = [];
+    this.meleeMode = false;
+    this.meleeEnemies.clear();
+    this.meleeDestinationX = this.getArenaWidth() / 2;
+    this.meleeDestinationY = this.getArenaHeight() / 2;
+    this.meleePlanTurn = -100;
   }
 
   private reverseDirection(turnNumber: number) {
@@ -239,6 +292,171 @@ class DangrundBot extends Bot {
     this.setTurnLeft(turn);
     this.setForward(driveDistance);
     this.setMaxSpeed(Math.abs(turn) > 35 ? 5.5 : 8);
+  }
+
+  private recordMeleeScan(event: ScannedBotEvent) {
+    const previous = this.meleeEnemies.get(event.scannedBotId);
+    const elapsed = Math.max(
+      1,
+      event.turnNumber - (previous?.seenTurn ?? event.turnNumber - 1),
+    );
+    const observedTurnRate =
+      previous === undefined
+        ? 0
+        : normalizeBearing(event.direction - previous.direction) / elapsed;
+    const turnRate =
+      previous === undefined
+        ? 0
+        : previous.turnRate * 0.65 + observedTurnRate * 0.35;
+    this.meleeEnemies.set(event.scannedBotId, {
+      id: event.scannedBotId,
+      x: event.x,
+      y: event.y,
+      energy: event.energy,
+      direction: event.direction,
+      speed: event.speed,
+      turnRate,
+      seenTurn: event.turnNumber,
+    });
+  }
+
+  private runMeleeTurn() {
+    const turn = this.getTurnNumber();
+    for (const [id, enemy] of this.meleeEnemies) {
+      if (turn - enemy.seenTurn > 45) this.meleeEnemies.delete(id);
+    }
+
+    this.setTurnRadarLeft(45);
+    const enemies = [...this.meleeEnemies.values()];
+    if (enemies.length === 0) {
+      this.setTurnLeft(8);
+      this.setForward(120);
+      return;
+    }
+
+    if (
+      turn - this.meleePlanTurn >= 10 ||
+      this.distanceTo(this.meleeDestinationX, this.meleeDestinationY) < 45
+    ) {
+      this.planMeleeDestination(enemies);
+      this.meleePlanTurn = turn;
+    }
+
+    this.driveAtAngle(
+      directionTo(
+        this.getX(),
+        this.getY(),
+        this.meleeDestinationX,
+        this.meleeDestinationY,
+      ),
+      180,
+    );
+    this.aimMeleeGun(enemies);
+  }
+
+  private planMeleeDestination(enemies: MeleeEnemy[]) {
+    const margin = 65;
+    const width = this.getArenaWidth();
+    const height = this.getArenaHeight();
+    const baseAngle = Math.random() * 360;
+    let bestRisk = Number.POSITIVE_INFINITY;
+
+    for (let i = 0; i < 24; i += 1) {
+      const angle = baseAngle + i * 15;
+      const radius = 150 + Math.random() * 110;
+      const x = clamp(
+        margin,
+        this.getX() + Math.cos(toRadians(angle)) * radius,
+        width - margin,
+      );
+      const y = clamp(
+        margin,
+        this.getY() + Math.sin(toRadians(angle)) * radius,
+        height - margin,
+      );
+      let risk = 0;
+
+      for (const enemy of enemies) {
+        const distanceSquared = Math.max(
+          900,
+          (x - enemy.x) ** 2 + (y - enemy.y) ** 2,
+        );
+        risk += (enemy.energy + 75) / distanceSquared;
+        if (distanceSquared < 170 ** 2) {
+          risk += (170 ** 2 - distanceSquared) / 200000;
+        }
+      }
+
+      const wallDistance = Math.min(x, y, width - x, height - y);
+      risk += 8 / Math.max(20, wallDistance) ** 2;
+      const centerDistanceSquared =
+        (x - width / 2) ** 2 + (y - height / 2) ** 2;
+      risk += 12 / Math.max(10000, centerDistanceSquared);
+
+      if (risk < bestRisk) {
+        bestRisk = risk;
+        this.meleeDestinationX = x;
+        this.meleeDestinationY = y;
+      }
+    }
+  }
+
+  private aimMeleeGun(enemies: MeleeEnemy[]) {
+    const turn = this.getTurnNumber();
+    const target = enemies.reduce((best, enemy) => {
+      const score =
+        this.distanceTo(enemy.x, enemy.y) +
+        enemy.energy * 3 +
+        (turn - enemy.seenTurn) * 25;
+      const bestScore =
+        this.distanceTo(best.x, best.y) +
+        best.energy * 3 +
+        (turn - best.seenTurn) * 25;
+      return score < bestScore ? enemy : best;
+    });
+    const distance = this.distanceTo(target.x, target.y);
+    if (turn - target.seenTurn > 8 || distance > 760) return;
+
+    const power = this.meleeFirepower(distance, target.energy);
+    const bulletSpeed = 20 - 3 * power;
+    let x = target.x;
+    let y = target.y;
+    let heading = target.direction;
+    for (let tick = 1; tick <= 70; tick += 1) {
+      heading += target.turnRate;
+      x = clamp(
+        18,
+        x + Math.cos(toRadians(heading)) * target.speed,
+        this.getArenaWidth() - 18,
+      );
+      y = clamp(
+        18,
+        y + Math.sin(toRadians(heading)) * target.speed,
+        this.getArenaHeight() - 18,
+      );
+      if (tick * bulletSpeed >= this.distanceTo(x, y)) break;
+    }
+
+    const gunBearing = normalizeBearing(
+      directionTo(this.getX(), this.getY(), x, y) - this.getGunDirection(),
+    );
+    this.setTurnGunLeft(gunBearing);
+    const tolerance = toDegrees(Math.atan2(18, Math.max(1, distance))) + 0.5;
+    if (
+      this.getGunHeat() === 0 &&
+      Math.abs(gunBearing) <= tolerance &&
+      this.getEnergy() > power + 0.5
+    ) {
+      this.setFire(power);
+    }
+  }
+
+  private meleeFirepower(distance: number, targetEnergy: number) {
+    let power = distance < 180 ? 3 : distance < 500 ? 2.3 : 1.4;
+    if (this.getEnergy() < 25) power = Math.min(power, 1);
+    if (this.getEnergy() < 10) power = Math.min(power, 0.4);
+    if (targetEnergy < 10) power = Math.min(power, targetEnergy / 4 + 0.1);
+    return clamp(0.1, power, 3);
   }
 
   private trackEnemyFire(event: ScannedBotEvent) {
