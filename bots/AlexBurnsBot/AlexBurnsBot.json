@@ -1,0 +1,12 @@
+{
+  "name": "AlexBurnsBot",
+  "version": "1.0",
+  "authors": [
+    "Alex Burns"
+  ],
+  "description": "The literal best bot.",
+  "platform": "Node.js",
+  "programmingLang": "TypeScript",
+  "gameTypes": ["classic", "1v1", "melee"],
+  "tournament": true
+}
