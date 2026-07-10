@@ -549,10 +549,20 @@ class TjBot extends Bot {
         travelDir = flipped;
         this.wallFlipCooldown = 8;
       } else {
-        travelDir = this.directionTo(
-          this.getArenaWidth() / 2,
-          this.getArenaHeight() / 2,
-        );
+        // Cornered: wall-smooth — rotate the heading until it clears, keeping
+        // lateral motion. Never charge the center (that's a radial gift).
+        let smoothed = travelDir;
+        let found = false;
+        for (let i = 1; i <= 22; i++) {
+          smoothed = travelDir + dir * 15 * i;
+          if (this.travelIsSafe(smoothed)) {
+            found = true;
+            break;
+          }
+        }
+        travelDir = found
+          ? smoothed
+          : this.directionTo(this.getArenaWidth() / 2, this.getArenaHeight() / 2);
       }
     }
 
