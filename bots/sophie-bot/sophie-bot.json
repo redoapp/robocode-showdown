@@ -1,0 +1,11 @@
+{
+  "name": "sophie-bot",
+  "version": "1.0",
+  "authors": ["Sophie"],
+  "description": "Adaptive bot that cycles random move/shoot/scan strategy combos and reboots its strategy when it starts losing the energy exchange.",
+  "homepage": "https://github.com/redoapp/robocode-showdown",
+  "platform": "Node.js",
+  "programmingLang": "TypeScript",
+  "gameTypes": ["classic", "1v1", "melee"],
+  "tournament": true
+}
