@@ -1,0 +1,15 @@
+{
+  "name": "moose-bot",
+  "version": "1.0",
+  "authors": [
+    "Matthew Brown"
+  ],
+  "description": "Tournament-tuned TypeScript bot evolved from local 1v1 World Cup bracket evaluations.",
+  "platform": "Node.js",
+  "programmingLang": "TypeScript",
+  "gameTypes": [
+    "classic",
+    "1v1"
+  ],
+  "tournament": true
+}
