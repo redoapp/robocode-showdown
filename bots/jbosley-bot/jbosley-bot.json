@@ -1,0 +1,11 @@
+{
+  "name": "jbosley-bot",
+  "version": "1.0",
+  "authors": [
+    "Josh Bosley"
+  ],
+  "description": "jbosley-bot — drives around and shoots at whatever it sees.",
+  "platform": "Node.js",
+  "programmingLang": "TypeScript",
+  "gameTypes": ["classic", "1v1", "melee"]
+}
