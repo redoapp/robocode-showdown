@@ -4,8 +4,9 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { CombatState, SelfState, binToGuessFactor, guessFactorToBin } from "../src/combat-state.js";
-import { FEATURE_COUNT, GUESS_FACTOR_BINS, LearningSystem, makeFeatureVector } from "../src/learning-system.js";
+import { CombatState, binToGuessFactor, guessFactorToBin } from "../src/combat-state.ts";
+import type { SelfState } from "../src/combat-state.ts";
+import { FEATURE_COUNT, GUESS_FACTOR_BINS, LearningSystem, makeFeatureVector } from "../src/learning-system.ts";
 
 const self: SelfState = {
   roundNumber: 1,

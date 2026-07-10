@@ -1,4 +1,5 @@
-import { EnemyWave, Point, ResolvedEnemyWave, distance, guessFactorToBin } from "./combat-state.js";
+import { distance, guessFactorToBin } from "./combat-state.ts";
+import type { EnemyWave, Point, ResolvedEnemyWave } from "./combat-state.ts";
 
 export const DANGER_BINS = 47;
 

@@ -1,17 +1,13 @@
 import {
   BOT_RADIUS,
-  CombatState,
-  EnemyWave,
-  OpponentState,
-  ResolvedEnemyWave,
-  SelfState,
   absoluteBearing,
   clamp,
   distance,
   normalizeRelativeAngle,
-} from "./combat-state.js";
-import { DangerEstimator } from "./danger-estimator.js";
-import { TacticalAction } from "./tactical-policy.js";
+} from "./combat-state.ts";
+import type { CombatState, EnemyWave, OpponentState, ResolvedEnemyWave, SelfState } from "./combat-state.ts";
+import { DangerEstimator } from "./danger-estimator.ts";
+import type { TacticalAction } from "./tactical-policy.ts";
 
 const WALL_STICK = 120;
 

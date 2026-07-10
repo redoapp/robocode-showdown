@@ -1,4 +1,5 @@
-import { CombatState, OpponentState, SelfState, distance, normalizeRelativeAngle } from "./combat-state.js";
+import { distance, normalizeRelativeAngle } from "./combat-state.ts";
+import type { CombatState, OpponentState, SelfState } from "./combat-state.ts";
 
 export class TargetRadarSystem {
   private targetId: number | undefined;

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { CombatState, OpponentState, SelfState } from "../src/combat-state.js";
-import { TargetRadarSystem } from "../src/target-radar-system.js";
+import { CombatState } from "../src/combat-state.ts";
+import type { OpponentState, SelfState } from "../src/combat-state.ts";
+import { TargetRadarSystem } from "../src/target-radar-system.ts";
 
 const self: SelfState = {
   roundNumber: 1,

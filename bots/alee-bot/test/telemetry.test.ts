@@ -3,9 +3,9 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { ResolvedFriendlyWave } from "../src/combat-state.js";
-import { FEATURE_COUNT } from "../src/learning-system.js";
-import { TelemetryCollector } from "../src/telemetry.js";
+import type { ResolvedFriendlyWave } from "../src/combat-state.ts";
+import { FEATURE_COUNT } from "../src/learning-system.ts";
+import { TelemetryCollector } from "../src/telemetry.ts";
 
 test("telemetry buffers schema-v2 outcomes until an explicit flush", () => {
   const root = mkdtempSync(join(tmpdir(), "alee-telemetry-"));

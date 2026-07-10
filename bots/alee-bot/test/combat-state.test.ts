@@ -2,12 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   CombatState,
-  SelfState,
-  ScanObservation,
   absoluteBearing,
   bulletSpeed,
   maximumEscapeAngle,
-} from "../src/combat-state.js";
+} from "../src/combat-state.ts";
+import type { SelfState, ScanObservation } from "../src/combat-state.ts";
 
 const self = (overrides: Partial<SelfState> = {}): SelfState => ({
   roundNumber: 1,

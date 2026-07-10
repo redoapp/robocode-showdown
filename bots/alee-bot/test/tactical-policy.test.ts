@@ -3,12 +3,12 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { OpponentState, SelfState } from "../src/combat-state.js";
+import type { OpponentState, SelfState } from "../src/combat-state.ts";
 import {
   DEFAULT_TACTICAL_POLICY,
   TacticalPolicy,
   validateTacticalPolicy,
-} from "../src/tactical-policy.js";
+} from "../src/tactical-policy.ts";
 
 const self: SelfState = {
   roundNumber: 0,

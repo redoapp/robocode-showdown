@@ -1,5 +1,5 @@
-import {
-  Bot,
+import { Bot } from "@robocode.dev/tank-royale-bot-api";
+import type {
   BotDeathEvent,
   BulletFiredEvent,
   BulletHitBotEvent,
@@ -13,14 +13,15 @@ import {
 } from "@robocode.dev/tank-royale-bot-api";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CombatState, SelfState } from "./src/combat-state.js";
-import { GunSystem } from "./src/gun-system.js";
-import type { GunPlan } from "./src/gun-system.js";
-import { GUESS_FACTOR_BINS, LearningSystem } from "./src/learning-system.js";
-import { MovementSystem } from "./src/movement-system.js";
-import { TargetRadarSystem } from "./src/target-radar-system.js";
-import { TacticalPolicy } from "./src/tactical-policy.js";
-import { TelemetryCollector } from "./src/telemetry.js";
+import { CombatState } from "./src/combat-state.ts";
+import type { SelfState } from "./src/combat-state.ts";
+import { GunSystem } from "./src/gun-system.ts";
+import type { GunPlan } from "./src/gun-system.ts";
+import { GUESS_FACTOR_BINS, LearningSystem } from "./src/learning-system.ts";
+import { MovementSystem } from "./src/movement-system.ts";
+import { TargetRadarSystem } from "./src/target-radar-system.ts";
+import { TacticalPolicy } from "./src/tactical-policy.ts";
+import { TelemetryCollector } from "./src/telemetry.ts";
 
 const BOT_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const TRAINING_DIRECTORY = join(BOT_DIRECTORY, "training");
