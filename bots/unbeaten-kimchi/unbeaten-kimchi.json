@@ -1,0 +1,16 @@
+{
+  "name": "Unbeaten Kimchi",
+  "version": "1.0",
+  "authors": [
+    "Henry Cho"
+  ],
+  "description": "Unbeaten Kimchi — wave-surfing, GuessFactor-targeting Tank Royale bot.",
+  "platform": "Node.js",
+  "programmingLang": "TypeScript",
+  "gameTypes": [
+    "classic",
+    "1v1",
+    "melee"
+  ],
+  "tournament": true
+}
