@@ -1,0 +1,16 @@
+{
+  "name": "brett-bot",
+  "version": "1.0",
+  "authors": [
+    "Brett"
+  ],
+  "description": "brett-bot — wave-dodging orbital movement + virtual-gun predictive targeting.",
+  "platform": "Node.js",
+  "programmingLang": "TypeScript",
+  "gameTypes": [
+    "classic",
+    "1v1",
+    "melee"
+  ],
+  "tournament": true
+}
