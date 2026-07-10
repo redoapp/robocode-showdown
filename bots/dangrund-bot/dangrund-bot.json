@@ -1,0 +1,16 @@
+{
+  "name": "dangrund-bot",
+  "version": "1.0",
+  "authors": [
+    "Dan Grund"
+  ],
+  "description": "Predictive targeting, radar lock, and evasive orbital movement.",
+  "platform": "Node.js",
+  "programmingLang": "TypeScript",
+  "gameTypes": [
+    "classic",
+    "1v1",
+    "melee"
+  ],
+  "tournament": true
+}
