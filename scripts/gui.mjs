@@ -21,7 +21,12 @@ const instanceHome = join(tmpdir(), `robocode-gui-${process.pid}`);
 const guiConfigDir = (() => {
   switch (platform()) {
     case "darwin":
-      return join(instanceHome, "Library", "Application Support", "Robocode Tank Royale");
+      return join(
+        instanceHome,
+        "Library",
+        "Application Support",
+        "Robocode Tank Royale",
+      );
     case "win32":
       return join(instanceHome, "AppData", "Local", "Robocode Tank Royale");
     default:
@@ -42,7 +47,8 @@ const guiEnv = {
 const readProperties = async (path) => {
   const text = await readFile(path, "utf8").catch(() => "");
   return new Map(
-    text.split("\n")
+    text
+      .split("\n")
       .filter((line) => line.trim() && !line.startsWith("#"))
       .map((line) => {
         const eq = line.indexOf("=");
@@ -63,7 +69,10 @@ const seedBotDirectory = async () => {
   await mkdir(guiConfigDir, { recursive: true });
   const guiProperties = join(guiConfigDir, "gui.properties");
   const props = await readProperties(guiProperties);
-  props.set("bot-directories", botDirsInclude(props.get("bot-directories"), botsDir));
+  props.set(
+    "bot-directories",
+    botDirsInclude(props.get("bot-directories"), botsDir),
+  );
   const body = [...props].map(([k, v]) => `${k}=${v}`).join("\n");
   await writeFile(guiProperties, `${body}\n`);
 };
